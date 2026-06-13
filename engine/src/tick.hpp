@@ -1,16 +1,24 @@
 #pragma once
+#include "command.hpp"
 #include "wincheck.hpp"
 #include "statehash.hpp"
 #include <optional>
+#include <vector>
 
 namespace game {
 
 struct World;
 class Bot;
 
-// Run one full tick through all six phases (§5).
-// Returns a MatchResult if the game ended this tick, nullopt otherwise.
-// `hash` is updated in-place after the tick resolves.
+// Lower-level: run phases 1–6 with caller-supplied raw commands.
+// The match runner uses this so it can record commands for the replay log
+// before they are validated and consumed.
+std::optional<MatchResult> run_tick_phases(World& world, const std::vector<Command>& raw_a,
+                                           uint32_t faction_a, const std::vector<Command>& raw_b,
+                                           uint32_t faction_b, uint32_t tick_cap, StateHash& hash);
+
+// Convenience wrapper: builds snapshots, calls bots, then calls run_tick_phases.
+// Use this in tests that don't need replay recording.
 std::optional<MatchResult> run_tick(World& world, Bot& bot_a, uint32_t faction_a, Bot& bot_b,
                                     uint32_t faction_b, uint32_t tick_cap, StateHash& hash);
 

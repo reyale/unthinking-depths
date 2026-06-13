@@ -17,6 +17,7 @@ inline constexpr int32_t MAX_FACTIONS = 2;
 struct World {
   Map map;
   Rng rng;
+  uint64_t rng_seed{0}; // seed used to initialize rng; stored for replay
   uint32_t tick{0};
 
   std::map<UnitId, Unit> units;

@@ -28,8 +28,11 @@ void StateHash::update(const World& world) {
 
   Serializer s{state};
 
-  // Canonical order: tick, rng draw_count
+  // Canonical order: tick, full RNG state (4 words) + draw_count.
+  // Hashing the full state (not just draw_count) ensures different seeds
+  // produce different hashes even when no RNG draws occur.
   s.write(world.tick);
+  s.feed(world.rng.state_words(), 4 * sizeof(uint64_t));
   s.write(world.rng.draw_count());
 
   // Units in ascending id order (std::map guarantees this)

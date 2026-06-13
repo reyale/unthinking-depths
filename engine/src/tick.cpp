@@ -1,28 +1,20 @@
 #include "tick.hpp"
-#include "world.hpp"
 #include "bot_iface.hpp"
-#include "snapshot.hpp"
-#include "command.hpp"
-#include "movement.hpp"
 #include "combat.hpp"
+#include "command.hpp"
 #include "economy.hpp"
+#include "movement.hpp"
+#include "snapshot.hpp"
+#include "statehash.hpp"
 #include "territory.hpp"
 #include "wincheck.hpp"
-#include "statehash.hpp"
+#include "world.hpp"
 
 namespace game {
 
-std::optional<MatchResult> run_tick(World& world, Bot& bot_a, uint32_t faction_a, Bot& bot_b,
-                                    uint32_t faction_b, uint32_t tick_cap, StateHash& hash) {
-  // Phase 0 — Snapshot & Decide
-  // Build fog-masked snapshots from the frozen start-of-tick state.
-  Snapshot snap_a = build_snapshot(world, faction_a);
-  Snapshot snap_b = build_snapshot(world, faction_b);
-
-  // Both bots decide. Unhealthy bot → empty command list (forfeit).
-  std::vector<Command> raw_a = bot_a.healthy() ? bot_a.on_tick(snap_a) : std::vector<Command>{};
-  std::vector<Command> raw_b = bot_b.healthy() ? bot_b.on_tick(snap_b) : std::vector<Command>{};
-
+std::optional<MatchResult> run_tick_phases(World& world, const std::vector<Command>& raw_a,
+                                           uint32_t faction_a, const std::vector<Command>& raw_b,
+                                           uint32_t faction_b, uint32_t tick_cap, StateHash& hash) {
   // Phase 1 — Validate
   ValidatedCommands cmds_a = validate_commands(world, faction_a, raw_a);
   ValidatedCommands cmds_b = validate_commands(world, faction_b, raw_b);
@@ -36,18 +28,27 @@ std::optional<MatchResult> run_tick(World& world, Bot& bot_a, uint32_t faction_a
   // Phase 4 — Economy
   run_economy(world, cmds_a, cmds_b);
 
-  // Phase 5 — Spawn / Upkeep (production is handled inside economy for now)
+  // Phase 5 — Spawn / Upkeep (production handled inside economy)
 
   // Phase 6 — Territory & Win Check
   TerritoryState territory = run_territory(world);
   ++world.tick;
 
   auto result = run_wincheck(world, territory, tick_cap);
-
-  // Update rolling hash after the tick fully resolves
   hash.update(world);
-
   return result;
+}
+
+std::optional<MatchResult> run_tick(World& world, Bot& bot_a, uint32_t faction_a, Bot& bot_b,
+                                    uint32_t faction_b, uint32_t tick_cap, StateHash& hash) {
+  // Phase 0 — Snapshot & Decide
+  Snapshot snap_a = build_snapshot(world, faction_a);
+  Snapshot snap_b = build_snapshot(world, faction_b);
+
+  std::vector<Command> raw_a = bot_a.healthy() ? bot_a.on_tick(snap_a) : std::vector<Command>{};
+  std::vector<Command> raw_b = bot_b.healthy() ? bot_b.on_tick(snap_b) : std::vector<Command>{};
+
+  return run_tick_phases(world, raw_a, faction_a, raw_b, faction_b, tick_cap, hash);
 }
 
 } // namespace game

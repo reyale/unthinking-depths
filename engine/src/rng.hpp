@@ -27,6 +27,9 @@ public:
 
   uint64_t draw_count() const { return draw_count_; }
 
+  // Expose raw state for canonical hashing — different seeds = different words.
+  const uint64_t* state_words() const { return s; }
+
 private:
   uint64_t s[4];
   uint64_t draw_count_{0};

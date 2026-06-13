@@ -4,6 +4,7 @@
 #include "config.hpp"
 #include <cstdint>
 #include <optional>
+#include <type_traits>
 
 namespace game {
 
@@ -15,12 +16,16 @@ enum class UnitType : uint8_t {
   Frigate = 2,
   Artillery = 3,
 };
+static_assert(std::is_same_v<std::underlying_type_t<UnitType>, uint8_t>,
+              "UnitType underlying type changed — update Command::aux consumers");
 
 enum class StructureType : uint8_t {
   CommandCore = 0,
   Factory = 1,
   ClaimNode = 2,
 };
+static_assert(std::is_same_v<std::underlying_type_t<StructureType>, uint8_t>,
+              "StructureType underlying type changed — update Command::aux consumers");
 
 enum class OrderType : uint8_t {
   Idle = 0,

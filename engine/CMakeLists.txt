@@ -12,6 +12,8 @@ add_library(engine STATIC
     src/wincheck.cpp
     src/statehash.cpp
     src/tick.cpp
+    src/replay.cpp
+    src/match.cpp
 )
 
 target_include_directories(engine PUBLIC
