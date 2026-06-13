@@ -1,0 +1,66 @@
+#pragma once
+#include <cstdint>
+
+// All §12 balance constants and v1 hard caps live here — nowhere else.
+// Every value tagged (v1 placeholder) is expected to change during calibration.
+namespace game::cfg {
+
+// ---- Map ---------------------------------------------------------------
+inline constexpr int32_t MAP_MAX_W = 128;
+inline constexpr int32_t MAP_MAX_H = 128;
+inline constexpr int32_t MAP_DEFAULT_W = 80; // v1 placeholder
+inline constexpr int32_t MAP_DEFAULT_H = 80; // v1 placeholder
+
+// ---- Match -------------------------------------------------------------
+inline constexpr int32_t TICK_CAP = 3000;     // v1 placeholder
+inline constexpr int32_t UNIT_HARD_CAP = 256; // per side; bounds fuel/memory worst-case
+
+// ---- Win condition / territory -----------------------------------------
+// threshold(g) = THRESH_A - THRESH_B * g^2,  g = tick / TICK_CAP
+inline constexpr int32_t THRESH_A = 78;   // % at g=0  (v1 placeholder)
+inline constexpr int32_t THRESH_B = 27;   // convex drop (v1 placeholder)
+inline constexpr int32_t THRESH_MIN = 51; // floor sanity (should equal A-B)
+
+inline constexpr int32_t CLAIM_INFLUENCE = 12; // tiles radius, ~2–3% of 80×80 (v1 placeholder)
+
+// Claim hp: eff_hp = base*(1-g) + floor, drives late-game volatility
+inline constexpr int32_t CLAIM_HP_BASE = 200; // v1 placeholder
+inline constexpr int32_t CLAIM_HP_FLOOR = 1;
+
+// ---- Unit stats (v1 placeholders — iterate fast) -----------------------
+inline constexpr int32_t DRONE_HP = 20;
+inline constexpr int32_t DRONE_SIGHT = 4;
+inline constexpr int32_t DRONE_SPEED = 1;
+
+inline constexpr int32_t INTERCEPTOR_HP = 60;
+inline constexpr int32_t INTERCEPTOR_DMG = 12;
+inline constexpr int32_t INTERCEPTOR_RANGE = 1;
+inline constexpr int32_t INTERCEPTOR_SIGHT = 5;
+inline constexpr int32_t INTERCEPTOR_SPEED = 2;
+
+inline constexpr int32_t FRIGATE_HP = 35;
+inline constexpr int32_t FRIGATE_DMG = 14;
+inline constexpr int32_t FRIGATE_RANGE = 4;
+inline constexpr int32_t FRIGATE_SIGHT = 6;
+inline constexpr int32_t FRIGATE_SPEED = 2;
+
+inline constexpr int32_t ARTILLERY_HP = 30;
+inline constexpr int32_t ARTILLERY_DMG = 10;
+inline constexpr int32_t ARTILLERY_RANGE = 3;
+inline constexpr int32_t ARTILLERY_SIGHT = 5;
+inline constexpr int32_t ARTILLERY_SPEED = 1;
+inline constexpr int32_t ARTILLERY_SPLASH_RADIUS = 1;
+
+// ---- Structure stats ---------------------------------------------------
+inline constexpr int32_t CMD_CORE_HP = 600;
+inline constexpr int32_t FACTORY_HP = 150;
+
+// ---- WASM budgets (v1 placeholders — tune in sim) ----------------------
+inline constexpr uint64_t FUEL_STARTUP = 1'000'000'000ULL;
+inline constexpr uint64_t FUEL_PER_TICK = 10'000'000ULL;
+inline constexpr uint32_t MEMORY_CAP_MB = 64;
+
+// ---- ABI ---------------------------------------------------------------
+inline constexpr uint32_t ABI_VERSION = 1;
+
+} // namespace game::cfg

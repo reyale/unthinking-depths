@@ -1,0 +1,51 @@
+BasedOnStyle: LLVM
+
+# Indentation
+IndentWidth:             2
+ContinuationIndentWidth: 2
+AccessModifierOffset:   -2
+NamespaceIndentation:    None
+UseTab:                  Never
+TabWidth:                2
+
+# Line length
+ColumnLimit: 100
+
+# Braces: K&R (attach to statement, not Allman)
+BreakBeforeBraces: Attach
+
+# Alignment
+PointerAlignment:         Left
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignTrailingComments:    true
+
+# Short forms
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: false
+
+# Breaking
+BreakConstructorInitializers: BeforeColon
+ConstructorInitializerIndentWidth: 2
+BreakBeforeBinaryOperators: None
+AlwaysBreakTemplateDeclarations: Yes
+
+# Includes: preserve existing order (engine include grouping is intentional)
+SortIncludes: false
+
+# Spaces
+SpaceBeforeParens:        ControlStatements
+SpaceInEmptyParentheses:  false
+SpacesInAngles:           false
+SpacesInParentheses:      false
+SpacesInSquareBrackets:   false
+SpaceAfterCStyleCast:     false
+SpaceBeforeAssignmentOperators: true
+
+# Misc
+Cpp11BracedListStyle:     true
+DerivePointerAlignment:   false
+MaxEmptyLinesToKeep:      1
+KeepEmptyLinesAtTheStartOfBlocks: false
