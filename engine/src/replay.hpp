@@ -3,6 +3,7 @@
 #include "grid.hpp"
 #include "wincheck.hpp"
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace game {
@@ -43,6 +44,8 @@ struct ReplayLog {
 
   uint32_t faction_a;
   uint32_t faction_b;
+  std::string name_a; // truncated to cfg::MAX_PLAYER_NAME_LEN at match start
+  std::string name_b;
   uint32_t tick_cap;
 
   std::vector<TickEntry> ticks;

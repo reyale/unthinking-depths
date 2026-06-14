@@ -1,8 +1,11 @@
 #include <gtest/gtest.h>
-#include "match.hpp"
-#include "world.hpp"
-#include "snapshot.hpp"
 #include "config.hpp"
+#include "file_io.hpp"
+#include "frame.hpp"
+#include "match.hpp"
+#include "replay_io.hpp"
+#include "snapshot.hpp"
+#include "world.hpp"
 #include "../fixtures/idle_bot.hpp"
 
 // Build a small symmetric world: two Command Cores + two Drones each side.
@@ -110,4 +113,130 @@ TEST(Fog, FarEnemyNotVisible) {
 
   game::Snapshot snap = game::build_snapshot(w, 0);
   EXPECT_EQ(snap.visible_enemies.size(), 0u);
+}
+
+// ---- Replay file I/O --------------------------------------------------------
+
+TEST(ReplayIO, RoundtripReproducesHash) {
+  game::World w = make_test_world(42);
+  game::IdleBot a, b;
+  auto rec = game::run_match(w, a, 0, b, 1, 200);
+
+  game::MemoryWriter mw;
+  game::write_replay(rec.replay, mw);
+
+  game::MemoryReader mr(mw.data);
+  game::ReplayLog log2 = game::read_replay(mr);
+
+  uint64_t replayed = game::replay(log2);
+  EXPECT_EQ(replayed, rec.replay.expected_hash);
+}
+
+TEST(ReplayIO, VersionMismatchThrows) {
+  game::World w = make_test_world(1);
+  game::IdleBot a, b;
+  auto rec = game::run_match(w, a, 0, b, 1, 10);
+  rec.replay.abi_version = 999; // corrupt the version
+
+  game::MemoryWriter mw;
+  game::write_replay(rec.replay, mw);
+
+  game::MemoryReader mr(mw.data);
+  EXPECT_THROW(game::read_replay(mr), game::ReplayVersionError);
+}
+
+// ---- ReplayWriter streaming -------------------------------------------------
+
+TEST(ReplayWriter, StreamingMatchOutputRoundtrips) {
+  game::World w = make_test_world(77);
+  game::IdleBot a, b;
+
+  game::MemoryWriter mw;
+  game::ReplayWriter rw(mw);
+  auto rec = game::run_match(w, a, 0, b, 1, 200, "alice", "bob", &rw);
+
+  game::MemoryReader mr(mw.data);
+  game::ReplayLog log2 = game::read_replay(mr);
+
+  EXPECT_EQ(game::replay(log2), rec.replay.expected_hash);
+}
+
+TEST(ReplayWriter, StreamingMatchPreservesNames) {
+  game::World w = make_test_world(7);
+  game::IdleBot a, b;
+
+  game::MemoryWriter mw;
+  game::ReplayWriter rw(mw);
+  game::run_match(w, a, 0, b, 1, 50, "alice", "bob", &rw);
+
+  game::MemoryReader mr(mw.data);
+  game::ReplayLog log2 = game::read_replay(mr);
+
+  EXPECT_EQ(log2.name_a, "alice");
+  EXPECT_EQ(log2.name_b, "bob");
+}
+
+TEST(ReplayWriter, StreamingOutputMatchesBatchOutput) {
+  game::World w1 = make_test_world(13);
+  game::World w2 = make_test_world(13);
+  game::IdleBot a1, b1, a2, b2;
+
+  // Streaming write via run_match
+  game::MemoryWriter stream_mw;
+  game::ReplayWriter rw(stream_mw);
+  game::run_match(w1, a1, 0, b1, 1, 100, "p0", "p1", &rw);
+
+  // Batch write after the fact
+  game::MemoryWriter batch_mw;
+  auto rec = game::run_match(w2, a2, 0, b2, 1, 100, "p0", "p1");
+  game::write_replay(rec.replay, batch_mw);
+
+  EXPECT_EQ(stream_mw.data, batch_mw.data);
+}
+
+TEST(ReplayWriter, ManualBeginWriteTickFinish) {
+  game::World w = make_test_world(3);
+  game::IdleBot a, b;
+  auto rec = game::run_match(w, a, 0, b, 1, 30);
+
+  // Replay it manually through ReplayWriter
+  game::MemoryWriter mw;
+  game::ReplayWriter rw(mw);
+  rw.begin(rec.replay);
+  for (const auto& entry : rec.replay.ticks)
+    rw.write_tick(entry);
+  rw.finish(rec.replay.expected_hash, rec.replay.outcome);
+
+  game::MemoryReader mr(mw.data);
+  game::ReplayLog log2 = game::read_replay(mr);
+
+  EXPECT_EQ(game::replay(log2), rec.replay.expected_hash);
+  EXPECT_EQ(log2.ticks.size(), rec.replay.ticks.size());
+}
+
+// ---- Frame collection -------------------------------------------------------
+
+TEST(ReplayFrames, FrameCountMatchesTicks) {
+  game::World w = make_test_world(5);
+  game::IdleBot a, b;
+  auto rec = game::run_match(w, a, 0, b, 1, 200);
+
+  auto frames = game::replay_frames(rec.replay);
+
+  // One initial frame + one frame per tick played.
+  EXPECT_EQ(frames.size(), rec.ticks_played + 1);
+  EXPECT_TRUE(frames.back().result.has_value());
+}
+
+TEST(ReplayFrames, InitialFrameHasAllUnits) {
+  game::World w = make_test_world(0);
+  game::IdleBot a, b;
+  auto rec = game::run_match(w, a, 0, b, 1, 50);
+
+  auto frames = game::replay_frames(rec.replay);
+
+  // make_test_world spawns 2 units + 1 structure per faction = 4 units, 2 structures.
+  EXPECT_EQ(frames[0].tick, 0u);
+  EXPECT_EQ(frames[0].units.size(), 4u);
+  EXPECT_EQ(frames[0].structures.size(), 2u);
 }

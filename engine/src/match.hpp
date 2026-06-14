@@ -1,8 +1,9 @@
 #pragma once
-#include "replay.hpp"
+#include "replay_io.hpp"
 #include "statehash.hpp"
 #include "wincheck.hpp"
 #include <cstdint>
+#include <string_view>
 
 namespace game {
 
@@ -20,6 +21,7 @@ struct MatchRecord {
 // Records every tick's raw commands into a ReplayLog so the match can be
 // reproduced exactly via replay().
 MatchRecord run_match(World& world, Bot& bot_a, uint32_t faction_a, Bot& bot_b, uint32_t faction_b,
-                      uint32_t tick_cap);
+                      uint32_t tick_cap, std::string_view name_a = "", std::string_view name_b = "",
+                      ReplayWriter* writer = nullptr);
 
 } // namespace game

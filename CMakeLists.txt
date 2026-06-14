@@ -12,11 +12,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(cmake/CompilerFlags.cmake)
 
-add_subdirectory(engine)
+# ---------------------------------------------------------------------------
+# Dependencies via FetchContent and pkg-config
+# ---------------------------------------------------------------------------
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(ZSTD REQUIRED libzstd)
 
-# ---------------------------------------------------------------------------
-# Dependencies via FetchContent
-# ---------------------------------------------------------------------------
 include(FetchContent)
 
 FetchContent_Declare(
@@ -38,6 +39,33 @@ FetchContent_MakeAvailable(xxhash)
 add_library(xxhash_iface INTERFACE)
 target_include_directories(xxhash_iface INTERFACE ${xxhash_SOURCE_DIR})
 target_compile_definitions(xxhash_iface INTERFACE XXH_INLINE_ALL)
+
+# ---------------------------------------------------------------------------
+# Wasmtime C API (prebuilt tarball, x86_64 Linux)
+# NOTE: This tarball is fetched from GitHub releases. For a self-hosted build
+# that doesn't depend on GitHub availability, mirror the tarball to your own
+# storage (S3, GCS, internal server) and update the URL below. The SHA256
+# must remain the same — it's your integrity guarantee regardless of source.
+# ---------------------------------------------------------------------------
+FetchContent_Declare(
+    wasmtime
+    URL      https://github.com/bytecodealliance/wasmtime/releases/download/v45.0.1/wasmtime-v45.0.1-x86_64-linux-c-api.tar.xz
+    URL_HASH SHA256=641417c7b86324e3dd986cebd33da68e88963f2b7707a86551c366f178086d79
+)
+FetchContent_MakeAvailable(wasmtime)
+
+add_library(wasmtime_lib STATIC IMPORTED GLOBAL)
+set_target_properties(wasmtime_lib PROPERTIES
+    IMPORTED_LOCATION             "${wasmtime_SOURCE_DIR}/lib/libwasmtime.a"
+    INTERFACE_INCLUDE_DIRECTORIES "${wasmtime_SOURCE_DIR}/include"
+)
+# libwasmtime.a requires these system libs on Linux
+target_link_libraries(wasmtime_lib INTERFACE dl m pthread)
+
+add_subdirectory(engine)
+add_subdirectory(viz)
+add_subdirectory(tools)
+add_subdirectory(runner)
 
 # ---------------------------------------------------------------------------
 # Tests

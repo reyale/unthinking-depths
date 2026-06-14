@@ -31,7 +31,7 @@ std::optional<MatchResult> run_tick_phases(World& world, const std::vector<Comma
   // Phase 5 — Spawn / Upkeep (production handled inside economy)
 
   // Phase 6 — Territory & Win Check
-  TerritoryState territory = run_territory(world);
+  TerritoryState territory = run_territory(world, tick_cap);
   ++world.tick;
 
   auto result = run_wincheck(world, territory, tick_cap);

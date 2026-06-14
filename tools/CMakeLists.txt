@@ -1,0 +1,3 @@
+add_executable(gen_example_replay gen_replay.cpp)
+target_link_libraries(gen_example_replay PRIVATE engine)
+target_include_directories(gen_example_replay PRIVATE ${CMAKE_SOURCE_DIR}/fixtures)

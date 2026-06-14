@@ -15,7 +15,7 @@ struct TerritoryState {
 
 // Recompute Voronoi territory and update Claim Node effective hp from the
 // game clock g = tick / tick_cap. Returns per-faction territory percentages.
-TerritoryState run_territory(World& world);
+TerritoryState run_territory(World& world, uint32_t tick_cap);
 
 // Current win threshold for the descending threshold condition.
 // threshold(g) = THRESH_A - THRESH_B * g^2, clamped to [THRESH_MIN, THRESH_A].

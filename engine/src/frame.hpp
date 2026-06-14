@@ -1,0 +1,44 @@
+#pragma once
+#include "entity.hpp"
+#include "ids.hpp"
+#include "wincheck.hpp"
+#include "world.hpp"
+#include <array>
+#include <optional>
+#include <vector>
+
+namespace game {
+
+struct ReplayLog;
+
+struct UnitFrame {
+  UnitId id;
+  FactionId faction;
+  UnitType type;
+  Vec2 pos;
+  int32_t hp;
+  int32_t max_hp;
+};
+
+struct StructureFrame {
+  StructureId id;
+  FactionId faction;
+  StructureType type;
+  Vec2 pos;
+  int32_t hp;
+  int32_t max_hp;
+};
+
+struct FrameState {
+  uint32_t tick{0};
+  std::vector<UnitFrame> units;
+  std::vector<StructureFrame> structures;
+  std::array<Resources, MAX_FACTIONS> resources{};
+  std::optional<MatchResult> result; // non-empty on the final frame only
+};
+
+// Re-simulate a replay log and collect one FrameState per completed tick, plus
+// the initial state before tick 1. The last frame has result set.
+std::vector<FrameState> replay_frames(const ReplayLog& log);
+
+} // namespace game
