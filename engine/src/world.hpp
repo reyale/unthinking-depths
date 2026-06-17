@@ -3,6 +3,7 @@
 #include "entity.hpp"
 #include "ids.hpp"
 #include "rng.hpp"
+#include "territory.hpp"
 #include <map>
 #include <array>
 #include <cstdint>
@@ -27,6 +28,9 @@ struct World {
   // Id counters — assigned in creation order, never reused.
   uint32_t next_unit_id{1};
   uint32_t next_structure_id{1};
+
+  // Last territory partition (updated each tick after run_territory).
+  TerritoryState last_territory{};
 
   // ---- Factory helpers --------------------------------------------------
 

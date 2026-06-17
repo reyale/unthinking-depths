@@ -17,6 +17,11 @@ struct TickEntry {
   uint32_t tick;
   std::vector<Command> raw_a;
   std::vector<Command> raw_b;
+  // Resource usage observed from each bot this tick (0 for scripted bots).
+  uint64_t fuel_a{0};
+  uint64_t fuel_b{0};
+  uint64_t mem_bytes_a{0};
+  uint64_t mem_bytes_b{0};
 };
 
 // Initial entity placement recorded in spawn order.
@@ -47,6 +52,11 @@ struct ReplayLog {
   std::string name_a; // truncated to cfg::MAX_PLAYER_NAME_LEN at match start
   std::string name_b;
   uint32_t tick_cap;
+  // Resource usage during on_init (0 for scripted bots).
+  uint64_t init_fuel_a{0};
+  uint64_t init_fuel_b{0};
+  uint64_t init_mem_bytes_a{0};
+  uint64_t init_mem_bytes_b{0};
 
   std::vector<TickEntry> ticks;
 

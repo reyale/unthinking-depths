@@ -1,4 +1,5 @@
 #include "snapshot.hpp"
+#include "territory.hpp"
 #include "world.hpp"
 #include "entity.hpp"
 #include "grid.hpp"
@@ -6,7 +7,7 @@
 
 namespace game {
 
-Snapshot build_snapshot(const World& world, uint32_t faction_id) {
+Snapshot build_snapshot(const World& world, uint32_t faction_id, uint32_t tick_cap) {
   FactionId my_faction{faction_id};
   const auto& res = world.res(my_faction);
 
@@ -49,8 +50,8 @@ Snapshot build_snapshot(const World& world, uint32_t faction_id) {
   snap.header.my_faction_id = faction_id;
   snap.header.energy = res.energy;
   snap.header.alloy = res.alloy;
-  snap.header.territory_pct = 0; // stubbed until Phase 3
-  snap.header.win_threshold = 0; // stubbed until Phase 3
+  snap.header.territory_pct = world.last_territory.pct_faction[faction_id];
+  snap.header.win_threshold = static_cast<uint32_t>(win_threshold(world.tick, tick_cap));
   snap.header.map_w = static_cast<uint32_t>(W);
   snap.header.map_h = static_cast<uint32_t>(H);
 

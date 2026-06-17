@@ -34,12 +34,17 @@ ValidatedCommands validate_commands(const World& world, uint32_t faction_id,
       break;
     }
     case CommandKind::Attack: {
-      // Optional explicit target — validate if provided
       if (cmd.target_id != 0) {
-        UnitId tid{cmd.target_id};
-        const Unit* tgt = world.find_unit(tid);
-        if (!tgt || !tgt->alive() || tgt->faction == my_faction)
-          continue;
+        // Accept valid enemy unit OR valid enemy structure; unit takes priority
+        // when IDs coincide (both counters start at 1).
+        UnitId uid{cmd.target_id};
+        const Unit* u = world.find_unit(uid);
+        if (u && u->alive() && u->faction != my_faction)
+          break;
+        StructureId sid{cmd.target_id};
+        const Structure* s = world.find_structure(sid);
+        if (!s || !s->alive() || s->faction == my_faction)
+          continue; // explicit target provided but invalid
       }
       break;
     }

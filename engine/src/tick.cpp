@@ -32,6 +32,7 @@ std::optional<MatchResult> run_tick_phases(World& world, const std::vector<Comma
 
   // Phase 6 — Territory & Win Check
   TerritoryState territory = run_territory(world, tick_cap);
+  world.last_territory = territory;
   ++world.tick;
 
   auto result = run_wincheck(world, territory, tick_cap);
@@ -42,8 +43,8 @@ std::optional<MatchResult> run_tick_phases(World& world, const std::vector<Comma
 std::optional<MatchResult> run_tick(World& world, Bot& bot_a, uint32_t faction_a, Bot& bot_b,
                                     uint32_t faction_b, uint32_t tick_cap, StateHash& hash) {
   // Phase 0 — Snapshot & Decide
-  Snapshot snap_a = build_snapshot(world, faction_a);
-  Snapshot snap_b = build_snapshot(world, faction_b);
+  Snapshot snap_a = build_snapshot(world, faction_a, tick_cap);
+  Snapshot snap_b = build_snapshot(world, faction_b, tick_cap);
 
   std::vector<Command> raw_a = bot_a.healthy() ? bot_a.on_tick(snap_a) : std::vector<Command>{};
   std::vector<Command> raw_b = bot_b.healthy() ? bot_b.on_tick(snap_b) : std::vector<Command>{};

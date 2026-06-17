@@ -61,6 +61,10 @@ void write_header(FileWriter& out, const ReplayLog& h) {
   out.write_val(static_cast<uint8_t>(h.name_b.size()));
   out.write(h.name_b.data(), h.name_b.size());
   out.write_val(h.tick_cap);
+  out.write_val(h.init_fuel_a);
+  out.write_val(h.init_fuel_b);
+  out.write_val(h.init_mem_bytes_a);
+  out.write_val(h.init_mem_bytes_b);
 }
 
 void write_tick_entry(FileWriter& out, const TickEntry& entry) {
@@ -72,6 +76,10 @@ void write_tick_entry(FileWriter& out, const TickEntry& entry) {
   out.write_val(static_cast<uint32_t>(entry.raw_b.size()));
   for (const auto& cmd : entry.raw_b)
     out.write_val(cmd);
+  out.write_val(entry.fuel_a);
+  out.write_val(entry.fuel_b);
+  out.write_val(entry.mem_bytes_a);
+  out.write_val(entry.mem_bytes_b);
 }
 
 void write_footer(FileWriter& out, uint64_t expected_hash, const MatchResult& outcome) {
@@ -158,6 +166,10 @@ ReplayLog read_replay(FileReader& in) {
   log.name_a   = read_name();
   log.name_b   = read_name();
   log.tick_cap = in.read_val<uint32_t>();
+  log.init_fuel_a      = in.read_val<uint64_t>();
+  log.init_fuel_b      = in.read_val<uint64_t>();
+  log.init_mem_bytes_a = in.read_val<uint64_t>();
+  log.init_mem_bytes_b = in.read_val<uint64_t>();
 
   while (true) {
     auto tag = in.read_val<uint8_t>();
@@ -174,6 +186,10 @@ ReplayLog read_replay(FileReader& in) {
     entry.raw_b.reserve(cb);
     for (uint32_t j = 0; j < cb; ++j)
       entry.raw_b.push_back(in.read_val<Command>());
+    entry.fuel_a      = in.read_val<uint64_t>();
+    entry.fuel_b      = in.read_val<uint64_t>();
+    entry.mem_bytes_a = in.read_val<uint64_t>();
+    entry.mem_bytes_b = in.read_val<uint64_t>();
     log.ticks.push_back(std::move(entry));
   }
 

@@ -19,6 +19,6 @@ struct Snapshot {
 
 // Build a fog-masked snapshot for `faction` from the current world state.
 // LoS rule: sight radius only (Manhattan distance), no terrain blocking.
-Snapshot build_snapshot(const World& world, uint32_t faction_id);
+Snapshot build_snapshot(const World& world, uint32_t faction_id, uint32_t tick_cap);
 
 } // namespace game

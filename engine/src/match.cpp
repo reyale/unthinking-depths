@@ -49,18 +49,29 @@ MatchRecord run_match(World& world, Bot& bot_a, uint32_t faction_a, Bot& bot_b, 
 
   // Init bots
   bot_a.on_init(world.map, faction_a);
+  rec.replay.init_fuel_a     = bot_a.last_metrics().fuel_consumed;
+  rec.replay.init_mem_bytes_a = bot_a.last_metrics().memory_bytes;
   bot_b.on_init(world.map, faction_b);
+  rec.replay.init_fuel_b     = bot_b.last_metrics().fuel_consumed;
+  rec.replay.init_mem_bytes_b = bot_b.last_metrics().memory_bytes;
 
   // Tick loop
   std::optional<MatchResult> result;
   while (!result) {
-    Snapshot snap_a = build_snapshot(world, faction_a);
-    Snapshot snap_b = build_snapshot(world, faction_b);
+    Snapshot snap_a = build_snapshot(world, faction_a, tick_cap);
+    Snapshot snap_b = build_snapshot(world, faction_b, tick_cap);
 
     std::vector<Command> raw_a = bot_a.healthy() ? bot_a.on_tick(snap_a) : std::vector<Command>{};
     std::vector<Command> raw_b = bot_b.healthy() ? bot_b.on_tick(snap_b) : std::vector<Command>{};
 
-    TickEntry entry{world.tick, raw_a, raw_b};
+    TickEntry entry;
+    entry.tick        = world.tick;
+    entry.raw_a       = raw_a;
+    entry.raw_b       = raw_b;
+    entry.fuel_a      = bot_a.last_metrics().fuel_consumed;
+    entry.fuel_b      = bot_b.last_metrics().fuel_consumed;
+    entry.mem_bytes_a = bot_a.last_metrics().memory_bytes;
+    entry.mem_bytes_b = bot_b.last_metrics().memory_bytes;
     rec.replay.ticks.push_back(entry);
     if (writer)
       writer->write_tick(entry);

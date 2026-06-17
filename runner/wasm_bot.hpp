@@ -34,6 +34,7 @@ public:
   void on_init(const game::Map& map, uint32_t faction_id) override;
   std::vector<game::Command> on_tick(const game::Snapshot& snap) override;
   bool healthy() const override { return healthy_; }
+  game::BotMetrics last_metrics() const override { return last_metrics_; }
 
   // Human-readable message from the last failure (empty if none).
   const std::string& last_error() const { return last_error_; }
@@ -43,6 +44,7 @@ private:
   std::unique_ptr<Impl> impl_;
   bool healthy_{false};
   std::string last_error_;
+  game::BotMetrics last_metrics_{};
 };
 
 } // namespace runner

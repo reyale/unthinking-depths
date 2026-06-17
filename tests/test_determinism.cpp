@@ -84,7 +84,7 @@ TEST(Fog, SnapshotNeverLeaksEnemyOutsideVision) {
   // Place a stealth enemy unit far away from faction 0's sight
   w.spawn_unit({1}, game::UnitType::Drone, {19, 19});
 
-  game::Snapshot snap = game::build_snapshot(w, 0);
+  game::Snapshot snap = game::build_snapshot(w, 0, game::cfg::TICK_CAP);
 
   // Verify every visible enemy is actually within sight of some friendly unit
   for (const auto& ev : snap.visible_enemies) {
@@ -111,7 +111,7 @@ TEST(Fog, FarEnemyNotVisible) {
   w.spawn_unit({0}, game::UnitType::Interceptor, {0, 0});
   w.spawn_unit({1}, game::UnitType::Interceptor, {39, 39});
 
-  game::Snapshot snap = game::build_snapshot(w, 0);
+  game::Snapshot snap = game::build_snapshot(w, 0, game::cfg::TICK_CAP);
   EXPECT_EQ(snap.visible_enemies.size(), 0u);
 }
 

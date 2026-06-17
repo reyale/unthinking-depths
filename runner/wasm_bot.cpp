@@ -177,6 +177,12 @@ void WasmBot::on_init(const game::Map& /*map*/, uint32_t faction_id) {
   wasm_trap_t* trap = nullptr;
   wasmtime_error_t* err =
       wasmtime_func_call(ctx, &impl_->fn_init, &arg, 1, nullptr, 0, &trap);
+
+  uint64_t remaining = 0;
+  wasmtime_context_get_fuel(ctx, &remaining);
+  last_metrics_.fuel_consumed = game::cfg::FUEL_STARTUP - remaining;
+  last_metrics_.memory_bytes  = wasmtime_memory_data_size(ctx, &impl_->memory);
+
   if (err || trap) {
     last_error_ = drain_error(err, trap);
     healthy_ = false; // init failure is permanent
@@ -202,10 +208,16 @@ std::vector<game::Command> WasmBot::on_tick(const game::Snapshot& snap) {
   hdr.tiles_off    = tiles_off;
 
   uint8_t* dest = mem + impl_->snapshot_addr;
-  std::memcpy(dest,              &hdr,                      sizeof(hdr));
-  std::memcpy(dest + my_units_off, snap.my_units.data(),    snap.my_units.size() * sizeof(game::UnitView));
-  std::memcpy(dest + enemies_off,  snap.visible_enemies.data(), snap.visible_enemies.size() * sizeof(game::EnemyView));
-  std::memcpy(dest + tiles_off,    snap.visible_tiles.data(),   snap.visible_tiles.size() * sizeof(game::TileView));
+  std::memcpy(dest, &hdr, sizeof(hdr));
+  if (!snap.my_units.empty())
+    std::memcpy(dest + my_units_off, snap.my_units.data(),
+                snap.my_units.size() * sizeof(game::UnitView));
+  if (!snap.visible_enemies.empty())
+    std::memcpy(dest + enemies_off, snap.visible_enemies.data(),
+                snap.visible_enemies.size() * sizeof(game::EnemyView));
+  if (!snap.visible_tiles.empty())
+    std::memcpy(dest + tiles_off, snap.visible_tiles.data(),
+                snap.visible_tiles.size() * sizeof(game::TileView));
 
   // Refuel and call on_tick.
   wasmtime_context_set_fuel(ctx, game::cfg::FUEL_PER_TICK);
@@ -214,6 +226,12 @@ std::vector<game::Command> WasmBot::on_tick(const game::Snapshot& snap) {
   wasm_trap_t* trap = nullptr;
   wasmtime_error_t* err =
       wasmtime_func_call(ctx, &impl_->fn_on_tick, nullptr, 0, &result, 1, &trap);
+
+  uint64_t remaining = 0;
+  wasmtime_context_get_fuel(ctx, &remaining);
+  last_metrics_.fuel_consumed = game::cfg::FUEL_PER_TICK - remaining;
+  last_metrics_.memory_bytes  = wasmtime_memory_data_size(ctx, &impl_->memory);
+
   if (err || trap) {
     // Tick forfeit — log but stay healthy for next tick.
     last_error_ = drain_error(err, trap);
@@ -224,8 +242,9 @@ std::vector<game::Command> WasmBot::on_tick(const game::Snapshot& snap) {
   cmd_count = std::min(cmd_count, static_cast<uint32_t>(game::cfg::UNIT_HARD_CAP));
 
   std::vector<game::Command> cmds(cmd_count);
-  std::memcpy(cmds.data(), mem + impl_->command_addr,
-              cmd_count * sizeof(game::Command));
+  if (cmd_count > 0)
+    std::memcpy(cmds.data(), mem + impl_->command_addr,
+                cmd_count * sizeof(game::Command));
   return cmds;
 }
 

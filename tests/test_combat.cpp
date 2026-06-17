@@ -1,6 +1,9 @@
 #include <gtest/gtest.h>
+#include "bot_iface.hpp"
 #include "combat.hpp"
 #include "command.hpp"
+#include "match.hpp"
+#include "snapshot.hpp"
 #include "world.hpp"
 
 // Build a minimal world with two units adjacent to each other.
@@ -78,6 +81,99 @@ TEST(Combat, MutualKillBothDie) {
   game::run_combat(w, cmds_a, cmds_b);
 
   EXPECT_TRUE(w.units.empty());
+}
+
+// ---- Structure targeting -------------------------------------------------
+
+TEST(Combat, InterceptorDamagesCommandCore) {
+  auto w = make_combat_world();
+  // Interceptor adjacent to an enemy CommandCore — no enemy units present.
+  // Auto-targeting should fall through to the structure.
+  auto& inter = w.spawn_unit({0}, game::UnitType::Interceptor, {5, 5});
+  auto& core  = w.spawn_structure({1}, game::StructureType::CommandCore, {6, 5});
+
+  auto cmds_a = attack_cmd(inter.id);
+  game::ValidatedCommands empty_b;
+
+  game::run_combat(w, cmds_a, empty_b);
+
+  EXPECT_EQ(core.hp, game::cfg::CMD_CORE_HP - game::cfg::INTERCEPTOR_DMG);
+  EXPECT_TRUE(inter.alive()); // attacker unharmed
+}
+
+TEST(Combat, FrigateDestroysWeakStructure) {
+  auto w = make_combat_world();
+  auto& frigate = w.spawn_unit({0}, game::UnitType::Frigate, {5, 5});
+  auto& fac     = w.spawn_structure({1}, game::StructureType::Factory, {9, 5});
+  game::StructureId fac_id = fac.id;
+  fac.hp = 1; // one hit kill
+
+  auto cmds_a = attack_cmd(frigate.id);
+  game::ValidatedCommands empty_b;
+
+  game::run_combat(w, cmds_a, empty_b);
+
+  EXPECT_EQ(w.find_structure(fac_id), nullptr); // purged
+}
+
+TEST(Combat, UnitPreferredOverStructureWhenBothInRange) {
+  auto w = make_combat_world();
+  // Interceptor with range 1 adjacent to both an enemy unit and a structure.
+  // Unit should be chosen first.
+  auto& inter = w.spawn_unit({0}, game::UnitType::Interceptor, {5, 5});
+  auto& enemy = w.spawn_unit({1}, game::UnitType::Drone, {6, 5});
+  auto& core  = w.spawn_structure({1}, game::StructureType::CommandCore, {5, 4});
+  int32_t core_hp_before = core.hp;
+
+  auto cmds_a = attack_cmd(inter.id);
+  game::ValidatedCommands empty_b;
+
+  game::run_combat(w, cmds_a, empty_b);
+
+  EXPECT_LT(enemy.hp, game::cfg::DRONE_HP); // enemy unit took damage
+  EXPECT_EQ(core.hp, core_hp_before);        // structure untouched
+}
+
+TEST(Combat, BaseDestructionEndsMatch) {
+  // Run a short match where one Frigate is guaranteed to destroy the enemy
+  // CommandCore (set to 1 hp) — verifies WinReason::BaseDestroyed fires.
+  game::World w;
+  w.map = game::Map::make(10, 10);
+  w.rng = game::Rng{0};
+  w.rng_seed = 0;
+
+  w.spawn_structure({0}, game::StructureType::CommandCore, {1, 1});
+  auto& frigate = w.spawn_unit({0}, game::UnitType::Frigate, {5, 5});
+
+  w.spawn_structure({1}, game::StructureType::CommandCore, {8, 5});
+  w.command_core({1})->hp = 1;
+
+  struct RushBot : game::Bot {
+    void on_init(const game::Map&, uint32_t) override {}
+    std::vector<game::Command> on_tick(const game::Snapshot& snap) override {
+      std::vector<game::Command> out;
+      for (const auto& u : snap.my_units) {
+        game::Command cmd{};
+        cmd.unit_id = u.id;
+        cmd.kind = static_cast<uint16_t>(game::CommandKind::MoveAttack);
+        cmd.ax = 8; cmd.ay = 5;
+        out.push_back(cmd);
+      }
+      return out;
+    }
+    bool healthy() const override { return true; }
+  };
+
+  struct IdleB : game::Bot {
+    void on_init(const game::Map&, uint32_t) override {}
+    std::vector<game::Command> on_tick(const game::Snapshot&) override { return {}; }
+    bool healthy() const override { return true; }
+  };
+
+  RushBot a; IdleB b;
+  auto rec = game::run_match(w, a, 0, b, 1, 50);
+  EXPECT_EQ(rec.outcome.reason, game::WinReason::BaseDestroyed);
+  EXPECT_EQ(rec.outcome.winner.value, 0u);
 }
 
 // ---- Artillery splash ----------------------------------------------------

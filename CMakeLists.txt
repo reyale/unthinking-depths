@@ -40,6 +40,16 @@ add_library(xxhash_iface INTERFACE)
 target_include_directories(xxhash_iface INTERFACE ${xxhash_SOURCE_DIR})
 target_compile_definitions(xxhash_iface INTERFACE XXH_INLINE_ALL)
 
+FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG        v3.11.3
+    GIT_SHALLOW    TRUE
+)
+set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
+set(JSON_Install    OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(nlohmann_json)
+
 # ---------------------------------------------------------------------------
 # Wasmtime C API (prebuilt tarball, x86_64 Linux)
 # NOTE: This tarball is fetched from GitHub releases. For a self-hosted build
@@ -63,6 +73,7 @@ set_target_properties(wasmtime_lib PROPERTIES
 target_link_libraries(wasmtime_lib INTERFACE dl m pthread)
 
 add_subdirectory(engine)
+add_subdirectory(maps)
 add_subdirectory(viz)
 add_subdirectory(tools)
 add_subdirectory(runner)
