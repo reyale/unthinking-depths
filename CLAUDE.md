@@ -10,8 +10,13 @@ Build order and acceptance criteria: `docs/IMPLEMENTATION_PLAN.md`.
 
 ## Current State
 
-**Phase 1 complete.** 29/29 tests passing. The deterministic core engine is fully built.
+**Phase 1 complete.** 187/187 tests passing. The deterministic core engine is fully built.
 No WASM, no visualizer, no tournament harness yet.
+
+Additional work done beyond Phase 1:
+- `WinReason::Draw` — tick-cap result when territory difference ≤ `cfg::DRAW_TERRITORY_MARGIN` (5%).
+- `ABI_VERSION` is 5; bumping it invalidates all existing replay files.
+- GCC coverage build at **95.7% line / 97.2% function** via `build-cov/` (see below).
 
 ---
 
@@ -25,6 +30,12 @@ cd build && ctest --output-on-failure
 
 ASan + UBSan are enabled in Debug builds. Never suppress them — a sanitizer failure is a
 determinism bug, not a false positive.
+
+Coverage (requires `pip install gcovr`; separate build dir, no sanitizers):
+```bash
+cmake -B build-cov -DCMAKE_BUILD_TYPE=Coverage
+cmake --build build-cov --target coverage   # runs tests + generates build-cov/coverage/index.html
+```
 
 For LSP support:
 ```bash
