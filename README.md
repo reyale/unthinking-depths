@@ -67,6 +67,21 @@ cmake --build build -j$(nproc)
 cd build && ctest --output-on-failure
 ```
 
+## Coverage
+
+Requires `gcovr` (`pip install gcovr`).
+
+```bash
+# Configure a separate coverage build (once)
+cmake -B build-cov -DCMAKE_BUILD_TYPE=Coverage
+
+# Build and run — produces HTML + XML reports
+cmake --build build-cov --target coverage
+
+# Open the report
+xdg-open build-cov/coverage/index.html
+```
+
 For editor LSP support, symlink the compile commands:
 
 ```bash

@@ -307,3 +307,68 @@ TEST(Territory, DeterminismHashStableWithClaimNodes) {
   EXPECT_EQ(rec1.outcome.winner.value, rec2.outcome.winner.value);
   EXPECT_EQ(rec1.outcome.reason,       rec2.outcome.reason);
 }
+
+// ---- WinCheck tiebreak paths --------------------------------------------
+
+TEST(WinCheck, TiebreakByTerritoryPct) {
+  // Both cores absent (no structures) → both "dead" → tiebreak.
+  // Faction 0 has more territory → wins on line 14 of wincheck.cpp.
+  auto w = make_world();
+  game::TerritoryState ts{};
+  ts.pct_faction[0] = 60;
+  ts.pct_faction[1] = 40;
+  auto result = game::run_wincheck(w, ts, 1000);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(result->reason, game::WinReason::TieBreakLadder);
+  EXPECT_EQ(result->winner.value, 0u);
+}
+
+TEST(WinCheck, TiebreakByCoreHP) {
+  // Both factions simultaneously reach territory threshold → tiebreak.
+  // Territory equal → falls through to core-HP comparison.
+  auto w = make_world();
+  w.spawn_structure({0}, game::StructureType::Factory,     {3, 3}); // non-core → skipped
+  auto& c0 = w.spawn_structure({0}, game::StructureType::CommandCore, {1,  1});
+  auto& c1 = w.spawn_structure({1}, game::StructureType::CommandCore, {18, 18});
+  c0.hp = 200;
+  c1.hp = 100; // faction 0 has more HP
+
+  // Both above threshold at tick=0 (threshold=78%), equal territory → HP decides.
+  game::TerritoryState ts{};
+  ts.pct_faction[0] = 80;
+  ts.pct_faction[1] = 80;
+  auto result = game::run_wincheck(w, ts, 1000);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(result->reason, game::WinReason::TieBreakLadder);
+  EXPECT_EQ(result->winner.value, 0u);
+}
+
+TEST(WinCheck, TiebreakCoinFlipFactionZeroWins) {
+  // Both above threshold, territory equal, HP equal → deterministic coin-flip → f0.
+  auto w = make_world();
+  w.spawn_structure({0}, game::StructureType::CommandCore, {1,  1});
+  w.spawn_structure({1}, game::StructureType::CommandCore, {18, 18});
+  game::TerritoryState ts{};
+  ts.pct_faction[0] = 80;
+  ts.pct_faction[1] = 80;
+  auto result = game::run_wincheck(w, ts, 1000);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(result->reason, game::WinReason::TieBreakLadder);
+  EXPECT_EQ(result->winner.value, 0u);
+}
+
+TEST(WinCheck, TickCapClearWinner) {
+  // Tick cap reached; territory difference > DRAW_TERRITORY_MARGIN → TickCap.
+  auto w = make_world();
+  w.tick = 1000; // = tick_cap
+  w.spawn_structure({0}, game::StructureType::CommandCore, {1,  1});
+  w.spawn_structure({1}, game::StructureType::CommandCore, {18, 18});
+  // Neither fraction reaches the floor threshold (51% at g=1.0) but diff=20 > 5.
+  game::TerritoryState ts{};
+  ts.pct_faction[0] = 40;
+  ts.pct_faction[1] = 20;
+  auto result = game::run_wincheck(w, ts, 1000);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(result->reason, game::WinReason::TickCap);
+  EXPECT_EQ(result->winner.value, 0u);
+}

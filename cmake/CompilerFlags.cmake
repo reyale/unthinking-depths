@@ -29,6 +29,11 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|Clang|AppleClang)$")
         endif()
     endif()
 
+    if(CMAKE_BUILD_TYPE STREQUAL "Coverage")
+        add_compile_options(-O0 -g --coverage)
+        add_link_options(--coverage)
+    endif()
+
     if(NOT APPLE)
         add_link_options(-static-libgcc -static-libstdc++)
     endif()

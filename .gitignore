@@ -1,3 +1,4 @@
 build/
+build-cov/
 compile_commands.json
 Testing/

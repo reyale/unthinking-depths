@@ -175,8 +175,8 @@ TEST(WasmBot, IdleBotRunsFullMatch) {
 
   EXPECT_TRUE(bot_a.healthy());
   EXPECT_TRUE(bot_b.healthy());
-  // Both bots idle → tick cap reached.
-  EXPECT_EQ(rec.outcome.reason, game::WinReason::TickCap);
+  // Both bots idle → tick cap reached; territory 0-0 so result is Draw.
+  EXPECT_EQ(rec.outcome.reason, game::WinReason::Draw);
 }
 
 TEST(WasmBot, WasmMatchReproducesHash) {
@@ -415,7 +415,7 @@ TEST(SdkLifecycle, IdleBotVsIdleEndsAtTickCap) {
 
   EXPECT_TRUE(a.healthy());
   EXPECT_TRUE(b.healthy());
-  EXPECT_EQ(rec.outcome.reason, game::WinReason::TickCap);
+  EXPECT_EQ(rec.outcome.reason, game::WinReason::Draw);
 }
 
 TEST(SdkLifecycle, RushBotVsIdleEndsInBaseDeath) {

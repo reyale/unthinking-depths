@@ -56,8 +56,15 @@ std::optional<MatchResult> run_wincheck(const World& world, const TerritoryState
   }
 
   // 3. Tick cap?
-  if (world.tick >= tick_cap)
-    return MatchResult{tiebreak(world, territory), WinReason::TickCap};
+  if (world.tick >= tick_cap) {
+    int32_t diff = static_cast<int32_t>(territory.pct_faction[0]) -
+                   static_cast<int32_t>(territory.pct_faction[1]);
+    if (diff < 0) diff = -diff;
+    if (diff <= cfg::DRAW_TERRITORY_MARGIN)
+      return MatchResult{FactionId{}, WinReason::Draw};
+    return MatchResult{territory.pct_faction[0] > territory.pct_faction[1] ? f0 : f1,
+                       WinReason::TickCap};
+  }
 
   return std::nullopt;
 }

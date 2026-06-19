@@ -7,6 +7,7 @@ add_executable(engine_tests
     test_territory.cpp
     test_renderer.cpp
     test_bots.cpp
+    test_file_io.cpp
 )
 
 target_include_directories(engine_tests PRIVATE

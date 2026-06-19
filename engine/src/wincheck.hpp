@@ -13,6 +13,7 @@ enum class WinReason : uint8_t {
   TerritoryThreshold,
   TickCap,
   TieBreakLadder,
+  Draw, // tick cap with territory difference within DRAW_TERRITORY_MARGIN
 };
 
 struct MatchResult {

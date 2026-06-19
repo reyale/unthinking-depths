@@ -27,6 +27,7 @@ static const char* win_reason_str(game::WinReason r) {
     case game::WinReason::TerritoryThreshold: return "territory";
     case game::WinReason::TickCap:            return "tick cap";
     case game::WinReason::TieBreakLadder:     return "tie-break";
+    case game::WinReason::Draw:               return "draw";
   }
   return "?";
 }
@@ -67,8 +68,11 @@ void print_ascii_frame(const RenderFrame& rf) {
   printf("+\n");
 
   if (rf.result) {
-    printf("%sGame over: Faction %u wins (%s)%s\n", YELLOW,
-           rf.result->winner.value, win_reason_str(rf.result->reason), RESET);
+    if (rf.result->reason == game::WinReason::Draw)
+      printf("%sGame over: Draw (%s)%s\n", YELLOW, win_reason_str(rf.result->reason), RESET);
+    else
+      printf("%sGame over: Faction %u wins (%s)%s\n", YELLOW,
+             rf.result->winner.value, win_reason_str(rf.result->reason), RESET);
   } else {
     printf("\n");
   }

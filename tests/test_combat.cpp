@@ -143,7 +143,7 @@ TEST(Combat, BaseDestructionEndsMatch) {
   w.rng_seed = 0;
 
   w.spawn_structure({0}, game::StructureType::CommandCore, {1, 1});
-  auto& frigate = w.spawn_unit({0}, game::UnitType::Frigate, {5, 5});
+  w.spawn_unit({0}, game::UnitType::Frigate, {5, 5});
 
   w.spawn_structure({1}, game::StructureType::CommandCore, {8, 5});
   w.command_core({1})->hp = 1;
@@ -194,4 +194,65 @@ TEST(Combat, ArtillerySplashHitsFriendly) {
 
   // Friendly drone should have taken splash damage
   EXPECT_LT(friendly.hp, friendly_hp_before);
+}
+
+// ---- pick_target edge cases ---------------------------------------------
+
+TEST(Combat, DroneRangeZeroPicksNoTarget) {
+  // Drones have range=0 — pick_target must return null immediately.
+  auto w = make_combat_world();
+  auto& drone = w.spawn_unit({0}, game::UnitType::Drone, {5, 5});
+  w.spawn_unit({1}, game::UnitType::Interceptor, {6, 5});
+
+  auto cmds_a = attack_cmd(drone.id);
+  game::ValidatedCommands empty_b;
+  game::run_combat(w, cmds_a, empty_b);
+
+  // Drone has no damage; enemy untouched
+  EXPECT_EQ(w.find_unit(drone.id)->hp, game::cfg::DRONE_HP);
+}
+
+// ---- apply_splash edge cases -------------------------------------------
+
+TEST(Combat, SplashSkipsDeadUnit) {
+  // A dead unit (hp=0, not yet purged) must be ignored by apply_splash.
+  auto w = make_combat_world();
+  auto& arty = w.spawn_unit({0}, game::UnitType::Artillery, {5, 5});
+  w.spawn_unit({1}, game::UnitType::Interceptor, {8, 5});           // primary target, dist=3
+  game::UnitId dead_id = w.spawn_unit({1}, game::UnitType::Drone, {8, 6}).id; // in splash
+  w.find_unit(dead_id)->hp = 0; // dead but not purged
+
+  auto cmds_a = attack_cmd(arty.id);
+  game::ValidatedCommands empty_b;
+  game::run_combat(w, cmds_a, empty_b);
+
+  EXPECT_EQ(w.find_unit(dead_id), nullptr); // purged; was already at 0, not double-penalized
+}
+
+TEST(Combat, SplashDamagesStructureInRadius) {
+  // apply_splash must also accumulate damage on structures within radius 1.
+  auto w = make_combat_world();
+  auto& arty   = w.spawn_unit({0}, game::UnitType::Artillery, {5, 5});
+  w.spawn_unit({1}, game::UnitType::Interceptor, {8, 5}); // primary target
+  auto& fac    = w.spawn_structure({1}, game::StructureType::Factory, {8, 6}); // in splash
+
+  auto cmds_a = attack_cmd(arty.id);
+  game::ValidatedCommands empty_b;
+  game::run_combat(w, cmds_a, empty_b);
+
+  EXPECT_LT(fac.hp, game::cfg::FACTORY_HP); // factory took splash damage
+}
+
+TEST(Combat, ArtilleryTargetsStructureWithSplash) {
+  // Artillery auto-targets an enemy structure (no units in range) — exercises
+  // the structure-target branch of sub-phase B including apply_splash on s->pos.
+  auto w = make_combat_world();
+  auto& arty = w.spawn_unit({0}, game::UnitType::Artillery, {5, 5}); // range=3
+  auto& fac  = w.spawn_structure({1}, game::StructureType::Factory, {8, 5}); // dist=3
+
+  auto cmds_a = attack_cmd(arty.id);
+  game::ValidatedCommands empty_b;
+  game::run_combat(w, cmds_a, empty_b);
+
+  EXPECT_LT(fac.hp, game::cfg::FACTORY_HP);
 }
