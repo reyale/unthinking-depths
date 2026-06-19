@@ -41,7 +41,7 @@ std::optional<MatchResult> run_wincheck(const World& world, const TerritoryState
   // 1. Base destroyed?
   if (!core0_alive || !core1_alive) {
     if (!core0_alive && !core1_alive)
-      return MatchResult{tiebreak(world, territory), WinReason::TieBreakLadder};
+      return MatchResult{FactionId{}, WinReason::Draw};
     return MatchResult{core0_alive ? f0 : f1, WinReason::BaseDestroyed};
   }
 

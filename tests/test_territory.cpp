@@ -199,12 +199,12 @@ TEST(Territory, TerritoryThresholdWinsMatch) {
   EXPECT_LT(rec.ticks_played, tick_cap);
 }
 
-// ---- Integration: simultaneous base destruction → TieBreakLadder ------------
+// ---- Integration: simultaneous base destruction → Draw ----------------------
 
-TEST(Territory, SimultaneousBaseDeathTieBreaks) {
+TEST(Territory, SimultaneousBaseDeathIsDraw) {
   // Two Interceptors (range 1, dmg 12) each adjacent to the opposing core at 1 hp.
   // Both bots issue explicit Attack commands targeting the opposing core.
-  // Simultaneous damage kills both cores on tick 1 → TieBreakLadder.
+  // Simultaneous damage kills both cores on tick 1 → Draw.
   game::World world;
   world.map = game::Map::make(20, 20);
   world.rng  = game::Rng{0};
@@ -226,7 +226,6 @@ TEST(Territory, SimultaneousBaseDeathTieBreaks) {
   const uint32_t id_a = int_a.id.value;
   const uint32_t id_b = int_b.id.value;
 
-  // Bots that issue an explicit Attack command at the opposing core each tick.
   struct AttackCoreBot : game::Bot {
     uint32_t my_unit_id;
     uint32_t target_id;
@@ -246,10 +245,7 @@ TEST(Territory, SimultaneousBaseDeathTieBreaks) {
   AttackCoreBot b{id_b, core0_id};
   auto rec = game::run_match(world, a, 0, b, 1, 10u);
 
-  // Both cores die on tick 1 → TieBreakLadder (equal territory, equal core hp,
-  // lower faction id wins).
-  EXPECT_EQ(rec.outcome.reason, game::WinReason::TieBreakLadder);
-  EXPECT_EQ(rec.outcome.winner.value, 0u);
+  EXPECT_EQ(rec.outcome.reason, game::WinReason::Draw);
   EXPECT_EQ(rec.ticks_played, 1u);
 }
 
@@ -310,17 +306,15 @@ TEST(Territory, DeterminismHashStableWithClaimNodes) {
 
 // ---- WinCheck tiebreak paths --------------------------------------------
 
-TEST(WinCheck, TiebreakByTerritoryPct) {
-  // Both cores absent (no structures) → both "dead" → tiebreak.
-  // Faction 0 has more territory → wins on line 14 of wincheck.cpp.
+TEST(WinCheck, BothCoresAbsentIsDraw) {
+  // Both cores absent (no structures) → both "dead" simultaneously → Draw.
   auto w = make_world();
   game::TerritoryState ts{};
   ts.pct_faction[0] = 60;
   ts.pct_faction[1] = 40;
   auto result = game::run_wincheck(w, ts, 1000);
   ASSERT_TRUE(result.has_value());
-  EXPECT_EQ(result->reason, game::WinReason::TieBreakLadder);
-  EXPECT_EQ(result->winner.value, 0u);
+  EXPECT_EQ(result->reason, game::WinReason::Draw);
 }
 
 TEST(WinCheck, TiebreakByCoreHP) {
