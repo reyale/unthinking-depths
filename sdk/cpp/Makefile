@@ -12,6 +12,7 @@ CXXFLAGS = --target=$(TARGET)        \
 # wasm-ld exports data symbols by address, so SNAPSHOT_ADDR and COMMAND_ADDR
 # become WASM i32 globals pointing at their linear-memory locations.
 LDFLAGS  = -Wl,--no-entry            \
+           -Wl,--export=abi_version  \
            -Wl,--export=init         \
            -Wl,--export=on_tick      \
            -Wl,--export=SNAPSHOT_ADDR \
@@ -26,12 +27,14 @@ OUT      = $(patsubst %.cpp,%.wasm,$(BOT))
 
 all: $(OUT)
 
-$(OUT): $(BOT)
+$(OUT): $(BOT) $(HEADERS)
 	$(CLANG) $(CXXFLAGS) $(LDFLAGS) -o $@ $<
 
 examples: examples/idle_bot.wasm examples/rush_bot.wasm
 
-examples/%.wasm: examples/%.cpp
+HEADERS = include/ud/types.hpp ../../engine/src/abi.hpp ../../engine/src/config.hpp
+
+examples/%.wasm: examples/%.cpp $(HEADERS)
 	$(CLANG) $(CXXFLAGS) $(LDFLAGS) -o $@ $<
 
 clean:

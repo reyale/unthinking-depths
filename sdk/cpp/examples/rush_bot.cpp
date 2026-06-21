@@ -1,10 +1,10 @@
 // Rush bot: combat units MoveAttack toward the enemy starting corner,
 // drones move to the nearest visible resource node.
-#include <sfbg/types.hpp>
+#include <ud/types.hpp>
 #include <cstdint>
 
 extern "C" {
-  alignas(4) unsigned char SNAPSHOT_ADDR[sfbg::SNAPSHOT_BUFFER_SIZE];
+  alignas(4) unsigned char SNAPSHOT_ADDR[ud::SNAPSHOT_BUFFER_SIZE];
   alignas(4) game::Command COMMAND_ADDR[game::cfg::UNIT_HARD_CAP];
 }
 

@@ -51,7 +51,7 @@ if(CLANGPP18)
     DEPENDS
       ${_EX}/rush_bot.cpp
       ${_EX}/idle_bot.cpp
-      ${_SDK}/include/sfbg/types.hpp
+      ${_SDK}/include/ud/types.hpp
       ${_SDK}/include/cstddef
       ${_SDK}/include/cstdint
       ${_SDK}/include/type_traits

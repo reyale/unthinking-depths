@@ -20,6 +20,7 @@ static constexpr std::string_view IDLE_WAT = R"wat(
   (memory (export "memory") 6)
   (global (export "SNAPSHOT_ADDR") i32 (i32.const 0))
   (global (export "COMMAND_ADDR")  i32 (i32.const 327680))
+  (func   (export "abi_version") (result i32) i32.const 6)
   (func   (export "init")    (param i32))
   (func   (export "on_tick") (result i32) i32.const 0)
 )
@@ -32,6 +33,7 @@ static constexpr std::string_view TOO_SMALL_WAT = R"wat(
   (memory (export "memory") 1)
   (global (export "SNAPSHOT_ADDR") i32 (i32.const 0))
   (global (export "COMMAND_ADDR")  i32 (i32.const 60000))
+  (func   (export "abi_version") (result i32) i32.const 6)
   (func   (export "init")    (param i32))
   (func   (export "on_tick") (result i32) i32.const 0)
 )
@@ -43,6 +45,7 @@ static constexpr std::string_view FUEL_HOG_INIT_WAT = R"wat(
   (memory (export "memory") 6)
   (global (export "SNAPSHOT_ADDR") i32 (i32.const 0))
   (global (export "COMMAND_ADDR")  i32 (i32.const 327680))
+  (func (export "abi_version") (result i32) i32.const 6)
   (func (export "init") (param i32)
     (block $break
       (loop $loop
@@ -58,6 +61,7 @@ static constexpr std::string_view TICK_ECHO_WAT = R"wat(
   (memory (export "memory") 6)
   (global (export "SNAPSHOT_ADDR") i32 (i32.const 0))
   (global (export "COMMAND_ADDR")  i32 (i32.const 327680))
+  (func (export "abi_version") (result i32) i32.const 6)
   (func (export "init") (param i32))
   (func (export "on_tick") (result i32)
     (i32.store
@@ -74,6 +78,7 @@ static constexpr std::string_view COMMAND_WRITER_WAT = R"wat(
   (memory (export "memory") 6)
   (global (export "SNAPSHOT_ADDR") i32 (i32.const 0))
   (global (export "COMMAND_ADDR")  i32 (i32.const 327680))
+  (func (export "abi_version") (result i32) i32.const 6)
   (func (export "init") (param i32))
   (func (export "on_tick") (result i32)
     (i32.store (i32.const 327680) (i32.const 57005))
@@ -90,6 +95,7 @@ static constexpr std::string_view UNIT_COUNT_WAT = R"wat(
   (memory (export "memory") 6)
   (global (export "SNAPSHOT_ADDR") i32 (i32.const 0))
   (global (export "COMMAND_ADDR")  i32 (i32.const 327680))
+  (func (export "abi_version") (result i32) i32.const 6)
   (func (export "init") (param i32))
   (func (export "on_tick") (result i32)
     (i32.load (i32.const 32)))
@@ -104,6 +110,7 @@ static constexpr std::string_view UNIT_ID_ROUNDTRIP_WAT = R"wat(
   (memory (export "memory") 6)
   (global (export "SNAPSHOT_ADDR") i32 (i32.const 0))
   (global (export "COMMAND_ADDR")  i32 (i32.const 327680))
+  (func (export "abi_version") (result i32) i32.const 6)
   (func (export "init") (param i32))
   (func (export "on_tick") (result i32)
     (local $units_off i32)
@@ -121,6 +128,7 @@ static constexpr std::string_view TICK_FUEL_HOG_WAT = R"wat(
   (memory (export "memory") 6)
   (global (export "SNAPSHOT_ADDR") i32 (i32.const 0))
   (global (export "COMMAND_ADDR")  i32 (i32.const 327680))
+  (func (export "abi_version") (result i32) i32.const 6)
   (func (export "init") (param i32))
   (func (export "on_tick") (result i32)
     (block $break
@@ -136,9 +144,22 @@ static constexpr std::string_view TRAP_WAT = R"wat(
   (memory (export "memory") 6)
   (global (export "SNAPSHOT_ADDR") i32 (i32.const 0))
   (global (export "COMMAND_ADDR")  i32 (i32.const 327680))
+  (func (export "abi_version") (result i32) i32.const 6)
   (func (export "init") (param i32))
   (func (export "on_tick") (result i32)
     unreachable)
+)
+)wat";
+
+// Bot reporting the wrong ABI version — must be rejected at load time.
+static constexpr std::string_view ABI_MISMATCH_WAT = R"wat(
+(module
+  (memory (export "memory") 6)
+  (global (export "SNAPSHOT_ADDR") i32 (i32.const 0))
+  (global (export "COMMAND_ADDR")  i32 (i32.const 327680))
+  (func (export "abi_version") (result i32) i32.const 5)
+  (func (export "init") (param i32))
+  (func (export "on_tick") (result i32) i32.const 0)
 )
 )wat";
 
@@ -225,6 +246,13 @@ TEST(WasmBot, MissingExportRejectedAtLoad) {
   auto wasm = runner::wat_to_wasm("(module (memory 6))");
   runner::WasmBot bot(wasm);
   EXPECT_FALSE(bot.healthy());
+}
+
+TEST(WasmBot, AbiMismatchRejectedAtLoad) {
+  auto wasm = runner::wat_to_wasm(ABI_MISMATCH_WAT);
+  runner::WasmBot bot(wasm);
+  EXPECT_FALSE(bot.healthy());
+  EXPECT_NE(bot.last_error().find("mismatch"), std::string::npos);
 }
 
 TEST(WasmBot, InitFuelExhaustionMarksUnhealthy) {
@@ -466,7 +494,7 @@ TEST(SdkLifecycle, RushBotReplayFileRoundTrip) {
   auto w = make_combat_world(44);
   auto rec = game::run_match(w, a, 0, b, 1, game::cfg::TICK_CAP);
 
-  const std::string tmp = "/tmp/sfbg_sdk_roundtrip.sfbg";
+  const std::string tmp = "/tmp/ud_sdk_roundtrip.ud";
   game::write_replay_file(rec.replay, tmp);
   auto read_log = game::read_replay_file(tmp);
   std::remove(tmp.c_str());

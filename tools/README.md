@@ -1,6 +1,6 @@
 # tools/
 
-Developer utilities for Space Fleet Battle Game.
+Developer utilities for Unthinking Depths.
 
 ## gen_example_replay
 
@@ -10,16 +10,16 @@ Generates a demo replay file for manual testing of the visualizer.
 ./build/tools/gen_example_replay [output_path]
 ```
 
-Defaults to `demo.sfbg` if no path is given. Use a `.sfbg.zst` extension to
+Defaults to `demo.ud` if no path is given. Use a `.ud.zst` extension to
 write a zstd-compressed replay instead:
 
 ```bash
-./build/tools/gen_example_replay demo.sfbg.zst
+./build/tools/gen_example_replay demo.ud.zst
 ```
 
 The generated match is two idle bots on a 20×20 map with some terrain, running
-for 100 ticks. Feed the output to `sfbg_viz` to inspect it:
+for 100 ticks. Feed the output to `ud_viz` to inspect it:
 
 ```bash
-./build/viz/sfbg_viz demo.sfbg
+./build/viz/ud_viz demo.ud
 ```

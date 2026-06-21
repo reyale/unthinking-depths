@@ -1,4 +1,4 @@
-# Space Fleet Battle Game
+# Unthinking Depths
 
 A deterministic, server-executed strategy game where programmers submit bots that command autonomous space fleets in 1v1 head-to-head matches.
 

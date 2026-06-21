@@ -1,5 +1,5 @@
 // Generates a demo replay file for manual visualizer testing.
-// Usage: gen_replay <output.sfbg>
+// Usage: gen_replay <output.ud>
 #include "entity.hpp"
 #include "grid.hpp"
 #include "match.hpp"
@@ -10,7 +10,7 @@
 #include <cstdio>
 
 int main(int argc, char** argv) {
-  const char* path = (argc >= 2) ? argv[1] : "demo.sfbg";
+  const char* path = (argc >= 2) ? argv[1] : "demo.ud";
 
   game::World w;
   w.map = game::Map::make(20, 20);

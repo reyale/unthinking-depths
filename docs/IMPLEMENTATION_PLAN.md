@@ -1,4 +1,4 @@
-# IMPLEMENTATION_PLAN.md — Space Fleet Battle Game
+# IMPLEMENTATION_PLAN.md — Unthinking Depths
 
 Companion to `DESIGN.md`. This is the build plan for Claude Code. Read `DESIGN.md` first;
 this document specifies **what to build, in what order, with what technical contracts, and

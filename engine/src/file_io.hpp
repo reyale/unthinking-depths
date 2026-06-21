@@ -40,7 +40,7 @@ public:
   }
 };
 
-// Deduce FileIoType from file extension: .zst/.zstd → Zstd, .sfbg → Raw.
+// Deduce FileIoType from file extension: .zst/.zstd → Zstd, .ud → Raw.
 FileIoType deduce_file_io_type(const std::string& path);
 
 std::unique_ptr<FileWriter> make_file_writer(const std::string& path,

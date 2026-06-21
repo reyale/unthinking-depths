@@ -33,7 +33,7 @@ enum class Terrain : uint16_t {
 
 } // namespace game
 
-namespace sfbg {
+namespace ud {
 
 // Worst-case flat snapshot buffer size.  Must match MAX_SNAPSHOT_BYTES in
 // runner/wasm_bot.cpp — the engine validates this at bot load time.
@@ -44,4 +44,10 @@ inline constexpr unsigned SNAPSHOT_BUFFER_SIZE =
     + (unsigned)game::cfg::MAP_MAX_W * (unsigned)game::cfg::MAP_MAX_H
       * sizeof(game::TileView);
 
-} // namespace sfbg
+} // namespace ud
+
+// Every bot binary must export this symbol. The engine rejects bots whose
+// version doesn't match its own ABI_VERSION at load time.
+extern "C" __attribute__((used)) inline int32_t abi_version() {
+  return static_cast<int32_t>(game::cfg::ABI_VERSION);
+}

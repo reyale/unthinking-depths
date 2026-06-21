@@ -1,4 +1,4 @@
-// Space Fleet Battle Game — C++ Bot Template
+// Unthinking Depths — C++ Bot Template
 //
 // Quick start:
 //   make                    compiles this file → bot_template.wasm
@@ -8,14 +8,14 @@
 // It writes the snapshot into SNAPSHOT_ADDR before each call and reads
 // up to (return value) Command structs from COMMAND_ADDR after each call.
 
-#include <sfbg/types.hpp>
+#include <ud/types.hpp>
 #include <cstdint>
 
 // ---- ABI buffers -----------------------------------------------------------
 // wasm-ld exports the linear-memory address of each symbol as a WASM i32
 // global with the same name.  The engine reads those globals at load time.
 extern "C" {
-  alignas(4) unsigned char SNAPSHOT_ADDR[sfbg::SNAPSHOT_BUFFER_SIZE];
+  alignas(4) unsigned char SNAPSHOT_ADDR[ud::SNAPSHOT_BUFFER_SIZE];
   alignas(4) game::Command COMMAND_ADDR[game::cfg::UNIT_HARD_CAP];
 }
 

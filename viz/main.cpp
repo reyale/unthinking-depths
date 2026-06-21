@@ -43,7 +43,7 @@ static game::Map map_from_log(const game::ReplayLog& log) {
 
 int main(int argc, char** argv) {
   if (argc < 2) {
-    fprintf(stderr, "usage: sfbg_viz <replay.sfbg>\n");
+    fprintf(stderr, "usage: ud_viz <replay.ud>\n");
     fprintf(stderr, "  Glyphs: d=drone  i=interceptor  f=frigate  a=artillery\n");
     fprintf(stderr, "          C=core   T=factory      N=claim\n");
     fprintf(stderr, "  Cyan = faction 0, Red = faction 1\n");

@@ -159,6 +159,25 @@ WasmBot::WasmBot(const std::vector<uint8_t>& wasm)
     return;
   }
 
+  if (!get_export("abi_version", WASMTIME_EXTERN_FUNC)) return;
+  {
+    wasmtime_func_t fn_abi = item.of.func;
+    wasmtime_context_set_fuel(ctx, 1000);
+    wasmtime_val_t abi_result{};
+    wasm_trap_t* trap2   = nullptr;
+    wasmtime_error_t* err2 =
+        wasmtime_func_call(ctx, &fn_abi, nullptr, 0, &abi_result, 1, &trap2);
+    if (err2 || trap2) {
+      last_error_ = "abi_version() failed: " + drain_error(err2, trap2);
+      return;
+    }
+    if (static_cast<uint32_t>(abi_result.of.i32) != game::cfg::ABI_VERSION) {
+      last_error_ = "ABI version mismatch: bot=" + std::to_string(abi_result.of.i32)
+                    + " engine=" + std::to_string(game::cfg::ABI_VERSION);
+      return;
+    }
+  }
+
   healthy_ = true;
 }
 

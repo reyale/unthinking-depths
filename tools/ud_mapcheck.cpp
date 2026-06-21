@@ -5,7 +5,7 @@
 
 int main(int argc, char* argv[]) {
   if (argc != 2) {
-    std::cerr << "usage: sfbg_mapcheck <file.json>\n";
+    std::cerr << "usage: ud_mapcheck <file.json>\n";
     return 1;
   }
 

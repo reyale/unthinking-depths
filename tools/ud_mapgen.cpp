@@ -39,7 +39,7 @@ int main(int argc, char* argv[]) {
   }
 
   if (out_path.empty()) {
-    std::cerr << "usage: sfbg_mapgen [--width W] [--height H] [--seed N] "
+    std::cerr << "usage: ud_mapgen [--width W] [--height H] [--seed N] "
                  "[--resource-amount R] [--name NAME] --out FILE\n";
     return 1;
   }

@@ -1,10 +1,10 @@
 # viz/
 
-Replay visualizer for Space Fleet Battle Game.
+Replay visualizer for Unthinking Depths.
 
 ## Executables
 
-**`sfbg_viz <replay.sfbg|replay.sfbg.zst>`** — interactive ASCII terminal viewer.
+**`ud_viz <replay.ud|replay.ud.zst>`** — interactive ASCII terminal viewer.
 
 Re-simulates the match from its input log (does not store per-frame state in the
 file) and presents it frame by frame in the terminal.

@@ -5,7 +5,7 @@
 #include <string>
 
 // Binary format (little-endian, all integers native-endian on x86-64):
-//   8 bytes  magic "SFBGRPLY"
+//   8 bytes  magic "UDREPLAY"
 //   4 bytes  abi_version  (uint32_t)
 //   8 bytes  seed         (uint64_t)
 //   4 bytes  map_w        (int32_t)
@@ -28,7 +28,7 @@ namespace game {
 
 namespace {
 
-constexpr std::array<uint8_t, 8> MAGIC    = {'S', 'F', 'B', 'G', 'R', 'P', 'L', 'Y'};
+constexpr std::array<uint8_t, 8> MAGIC    = {'U', 'D', 'R', 'E', 'P', 'L', 'A', 'Y'};
 constexpr uint8_t TAG_TICK = 0x01;
 constexpr uint8_t TAG_END  = 0x00;
 

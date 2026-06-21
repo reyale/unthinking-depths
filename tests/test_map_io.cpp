@@ -27,7 +27,7 @@ TEST(MapIO, LoadSmallOpen) {
 
 TEST(MapIO, RoundTrip) {
   auto orig = maps::load_map(kDataDir + "/small_open.json");
-  const std::string tmp = "/tmp/sfbg_map_roundtrip.json";
+  const std::string tmp = "/tmp/ud_map_roundtrip.json";
   maps::save_map(orig, tmp);
   auto loaded = maps::load_map(tmp);
 
@@ -171,7 +171,7 @@ TEST(MapIO, HashDiffersForDifferentMaps) {
 
 TEST(MapIO, HashVerifiedOnRoundTrip) {
   auto orig = maps::load_map(kDataDir + "/small_open.json");
-  const std::string tmp = "/tmp/sfbg_map_hash_roundtrip.json";
+  const std::string tmp = "/tmp/ud_map_hash_roundtrip.json";
   maps::save_map(orig, tmp);
   // load_map will throw if the embedded hash doesn't match recomputed hash
   auto loaded = maps::load_map(tmp);
@@ -180,17 +180,17 @@ TEST(MapIO, HashVerifiedOnRoundTrip) {
 
 TEST(MapIO, HashMismatchThrows) {
   auto orig = maps::load_map(kDataDir + "/small_open.json");
-  maps::save_map(orig, "/tmp/sfbg_map_corrupt.json");
+  maps::save_map(orig, "/tmp/ud_map_corrupt.json");
 
   // Tamper with the hash field directly
   {
-    std::ifstream in("/tmp/sfbg_map_corrupt.json");
+    std::ifstream in("/tmp/ud_map_corrupt.json");
     nlohmann::json j = nlohmann::json::parse(in);
     j["hash"] = "0000000000000000";
-    std::ofstream out("/tmp/sfbg_map_corrupt.json");
+    std::ofstream out("/tmp/ud_map_corrupt.json");
     out << j.dump(2) << '\n';
   }
-  EXPECT_THROW(maps::load_map("/tmp/sfbg_map_corrupt.json"), std::runtime_error);
+  EXPECT_THROW(maps::load_map("/tmp/ud_map_corrupt.json"), std::runtime_error);
 }
 
 // ---- load_map error paths -----------------------------------------------
@@ -201,70 +201,70 @@ static void write_tmp(const std::string& path, const std::string& content) {
 }
 
 TEST(MapIO, LoadMissingFileThrows) {
-  EXPECT_THROW(maps::load_map("/tmp/sfbg_no_such_file_xyz.json"), std::runtime_error);
+  EXPECT_THROW(maps::load_map("/tmp/ud_no_such_file_xyz.json"), std::runtime_error);
 }
 
 TEST(MapIO, LoadBadJsonThrows) {
-  write_tmp("/tmp/sfbg_bad.json", "{not valid json}");
-  EXPECT_THROW(maps::load_map("/tmp/sfbg_bad.json"), std::runtime_error);
+  write_tmp("/tmp/ud_bad.json", "{not valid json}");
+  EXPECT_THROW(maps::load_map("/tmp/ud_bad.json"), std::runtime_error);
 }
 
 TEST(MapIO, LoadMissingGridThrows) {
-  write_tmp("/tmp/sfbg_nogrid.json", R"({"name":"t","resource_amount":500})");
-  EXPECT_THROW(maps::load_map("/tmp/sfbg_nogrid.json"), std::runtime_error);
+  write_tmp("/tmp/ud_nogrid.json", R"({"name":"t","resource_amount":500})");
+  EXPECT_THROW(maps::load_map("/tmp/ud_nogrid.json"), std::runtime_error);
 }
 
 TEST(MapIO, LoadEmptyGridThrows) {
-  write_tmp("/tmp/sfbg_emptygrid.json", R"({"name":"t","resource_amount":500,"grid":[]})");
-  EXPECT_THROW(maps::load_map("/tmp/sfbg_emptygrid.json"), std::runtime_error);
+  write_tmp("/tmp/ud_emptygrid.json", R"({"name":"t","resource_amount":500,"grid":[]})");
+  EXPECT_THROW(maps::load_map("/tmp/ud_emptygrid.json"), std::runtime_error);
 }
 
 TEST(MapIO, LoadRowNotStringThrows) {
-  write_tmp("/tmp/sfbg_notstr.json", R"({"name":"t","resource_amount":500,"grid":[42]})");
-  EXPECT_THROW(maps::load_map("/tmp/sfbg_notstr.json"), std::runtime_error);
+  write_tmp("/tmp/ud_notstr.json", R"({"name":"t","resource_amount":500,"grid":[42]})");
+  EXPECT_THROW(maps::load_map("/tmp/ud_notstr.json"), std::runtime_error);
 }
 
 TEST(MapIO, LoadInconsistentWidthThrows) {
-  write_tmp("/tmp/sfbg_width.json",
+  write_tmp("/tmp/ud_width.json",
     R"({"name":"t","resource_amount":500,"grid":["###1#","###"]})");
-  EXPECT_THROW(maps::load_map("/tmp/sfbg_width.json"), std::runtime_error);
+  EXPECT_THROW(maps::load_map("/tmp/ud_width.json"), std::runtime_error);
 }
 
 TEST(MapIO, LoadNebulaTerrain) {
-  write_tmp("/tmp/sfbg_nebula.json",
+  write_tmp("/tmp/ud_nebula.json",
     R"({"name":"t","resource_amount":100,"grid":["####","#1~#","#~2#","####"]})");
-  auto data = maps::load_map("/tmp/sfbg_nebula.json");
+  auto data = maps::load_map("/tmp/ud_nebula.json");
   EXPECT_EQ(data.map.tile_at({2, 1}).terrain, game::Terrain::Nebula);
 }
 
 TEST(MapIO, LoadDuplicateSpawn1Throws) {
-  write_tmp("/tmp/sfbg_dup1.json",
+  write_tmp("/tmp/ud_dup1.json",
     R"({"name":"t","resource_amount":100,"grid":["#####","#1.1#","#..2#","#####"]})");
-  EXPECT_THROW(maps::load_map("/tmp/sfbg_dup1.json"), std::runtime_error);
+  EXPECT_THROW(maps::load_map("/tmp/ud_dup1.json"), std::runtime_error);
 }
 
 TEST(MapIO, LoadDuplicateSpawn2Throws) {
-  write_tmp("/tmp/sfbg_dup2.json",
+  write_tmp("/tmp/ud_dup2.json",
     R"({"name":"t","resource_amount":100,"grid":["#####","#1.2#","#..2#","#####"]})");
-  EXPECT_THROW(maps::load_map("/tmp/sfbg_dup2.json"), std::runtime_error);
+  EXPECT_THROW(maps::load_map("/tmp/ud_dup2.json"), std::runtime_error);
 }
 
 TEST(MapIO, LoadUnknownCharThrows) {
-  write_tmp("/tmp/sfbg_unk.json",
+  write_tmp("/tmp/ud_unk.json",
     R"({"name":"t","resource_amount":100,"grid":["####","#1X#","#.2#","####"]})");
-  EXPECT_THROW(maps::load_map("/tmp/sfbg_unk.json"), std::runtime_error);
+  EXPECT_THROW(maps::load_map("/tmp/ud_unk.json"), std::runtime_error);
 }
 
 TEST(MapIO, LoadMissingSpawn1Throws) {
-  write_tmp("/tmp/sfbg_nos1.json",
+  write_tmp("/tmp/ud_nos1.json",
     R"({"name":"t","resource_amount":100,"grid":["####","#..#","#.2#","####"]})");
-  EXPECT_THROW(maps::load_map("/tmp/sfbg_nos1.json"), std::runtime_error);
+  EXPECT_THROW(maps::load_map("/tmp/ud_nos1.json"), std::runtime_error);
 }
 
 TEST(MapIO, LoadMissingSpawn2Throws) {
-  write_tmp("/tmp/sfbg_nos2.json",
+  write_tmp("/tmp/ud_nos2.json",
     R"({"name":"t","resource_amount":100,"grid":["####","#1.#","#..#","####"]})");
-  EXPECT_THROW(maps::load_map("/tmp/sfbg_nos2.json"), std::runtime_error);
+  EXPECT_THROW(maps::load_map("/tmp/ud_nos2.json"), std::runtime_error);
 }
 
 TEST(MapIO, SaveNebulaChar) {
@@ -277,9 +277,9 @@ TEST(MapIO, SaveNebulaChar) {
   data.spawn[0] = {1, 0};
   data.spawn[1] = {2, 3};
   data.map.recount_passable();
-  maps::save_map(data, "/tmp/sfbg_nebula_save.json");
+  maps::save_map(data, "/tmp/ud_nebula_save.json");
 
-  std::ifstream f("/tmp/sfbg_nebula_save.json");
+  std::ifstream f("/tmp/ud_nebula_save.json");
   nlohmann::json j = nlohmann::json::parse(f);
   bool found_tilde = false;
   for (const auto& row : j["grid"])
@@ -344,14 +344,14 @@ TEST(MapGen, SameSeedSameOutput) {
 
   game::Rng rng_a(7);
   auto data_a = maps::generate_map(p, rng_a);
-  maps::save_map(data_a, "/tmp/sfbg_map_seed_a.json");
+  maps::save_map(data_a, "/tmp/ud_map_seed_a.json");
 
   game::Rng rng_b(7);
   auto data_b = maps::generate_map(p, rng_b);
-  maps::save_map(data_b, "/tmp/sfbg_map_seed_b.json");
+  maps::save_map(data_b, "/tmp/ud_map_seed_b.json");
 
-  auto a = maps::load_map("/tmp/sfbg_map_seed_a.json");
-  auto b = maps::load_map("/tmp/sfbg_map_seed_b.json");
+  auto a = maps::load_map("/tmp/ud_map_seed_a.json");
+  auto b = maps::load_map("/tmp/ud_map_seed_b.json");
 
   ASSERT_EQ(a.map.width, b.map.width);
   ASSERT_EQ(a.map.height, b.map.height);

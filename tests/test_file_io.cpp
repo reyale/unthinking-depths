@@ -31,8 +31,8 @@ static game::ReplayLog make_minimal_log() {
 
 // ---- deduce_file_io_type ----------------------------------------------------
 
-TEST(FileIo, DeduceSfbgIsRaw) {
-  EXPECT_EQ(game::deduce_file_io_type("match.sfbg"), game::FileIoType::Raw);
+TEST(FileIo, DeduceUdIsRaw) {
+  EXPECT_EQ(game::deduce_file_io_type("match.ud"), game::FileIoType::Raw);
 }
 
 TEST(FileIo, DeduceZstIsZstd) {
@@ -54,7 +54,7 @@ TEST(FileIo, DeduceUnknownExtensionThrows) {
 // ---- Raw file round-trip ----------------------------------------------------
 
 TEST(FileIo, RawRoundTrip) {
-  const std::string path = "/tmp/sfbg_test_raw.sfbg";
+  const std::string path = "/tmp/ud_test_raw.ud";
   std::vector<uint8_t> payload = {1, 2, 3, 4, 5, 100, 200, 255};
 
   {
@@ -80,19 +80,19 @@ TEST(FileIo, RawRoundTrip) {
 }
 
 TEST(FileIo, RawWriteFailureThrows) {
-  EXPECT_THROW(game::make_file_writer("/nonexistent_dir/a.sfbg", game::FileIoType::Raw),
+  EXPECT_THROW(game::make_file_writer("/nonexistent_dir/a.ud", game::FileIoType::Raw),
                std::runtime_error);
 }
 
 TEST(FileIo, RawReadFailureThrows) {
-  EXPECT_THROW(game::make_file_reader("/nonexistent_dir/a.sfbg", game::FileIoType::Raw),
+  EXPECT_THROW(game::make_file_reader("/nonexistent_dir/a.ud", game::FileIoType::Raw),
                std::runtime_error);
 }
 
 // ---- Zstd file round-trip ---------------------------------------------------
 
 TEST(FileIo, ZstdRoundTripSmall) {
-  const std::string path = "/tmp/sfbg_test_small.zst";
+  const std::string path = "/tmp/ud_test_small.zst";
   std::vector<uint8_t> payload = {7, 8, 9, 42, 77};
 
   {
@@ -115,7 +115,7 @@ TEST(FileIo, ZstdRoundTripSmall) {
 TEST(FileIo, ZstdRoundTripLarge) {
   // >128 KB of incompressible data to exercise the streaming decompressor path
   // (refill input buffer loop and drain decoded-output-buffer loop).
-  const std::string path = "/tmp/sfbg_test_large.zst";
+  const std::string path = "/tmp/ud_test_large.zst";
   constexpr size_t N = 300 * 1024;
   std::vector<uint8_t> payload(N);
   for (size_t i = 0; i < N; ++i)
@@ -150,7 +150,7 @@ TEST(FileIo, ZstdReadFailureThrows) {
 }
 
 TEST(FileIo, ZstdEofAfterPayload) {
-  const std::string path = "/tmp/sfbg_test_eof.zst";
+  const std::string path = "/tmp/ud_test_eof.zst";
   std::vector<uint8_t> payload = {1, 2, 3};
 
   {
@@ -176,7 +176,7 @@ TEST(FileIo, ZstdEofAfterPayload) {
 // ---- Replay log file round-trip (Raw + Zstd) --------------------------------
 
 TEST(FileIo, ReplayRoundTripRaw) {
-  const std::string path = "/tmp/sfbg_test_replay.sfbg";
+  const std::string path = "/tmp/ud_test_replay.ud";
   auto log = make_minimal_log();
 
   game::write_replay_file(log, path);
@@ -192,7 +192,7 @@ TEST(FileIo, ReplayRoundTripRaw) {
 }
 
 TEST(FileIo, ReplayRoundTripZstd) {
-  const std::string path = "/tmp/sfbg_test_replay.zst";
+  const std::string path = "/tmp/ud_test_replay.zst";
   auto log = make_minimal_log();
 
   game::write_replay_file(log, path);

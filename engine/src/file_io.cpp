@@ -197,7 +197,7 @@ FileIoType deduce_file_io_type(const std::string& path) {
   std::string ext = path.substr(pos);
   if (ext == ".zst" || ext == ".zstd")
     return FileIoType::Zstd;
-  if (ext == ".sfbg")
+  if (ext == ".ud")
     return FileIoType::Raw;
   throw std::runtime_error("unknown file extension '" + ext + "'");
 }

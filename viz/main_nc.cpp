@@ -23,7 +23,7 @@ static game::Map map_from_log(const game::ReplayLog& log) {
 
 int main(int argc, char** argv) {
   if (argc < 2) {
-    fprintf(stderr, "usage: sfbg_viz_nc <replay.sfbg>\n");
+    fprintf(stderr, "usage: ud_viz_nc <replay.ud>\n");
     return 1;
   }
 

@@ -28,7 +28,7 @@ private:
 void write_replay(const ReplayLog& log, FileWriter& out);
 ReplayLog read_replay(FileReader& in);
 
-// Convenience file I/O — deduces compression from extension (.sfbg = raw, .sfbg.zst = zstd).
+// Convenience file I/O — deduces compression from extension (.ud = raw, .ud.zst = zstd).
 void write_replay_file(const ReplayLog& log, const std::string& path);
 ReplayLog read_replay_file(const std::string& path);
 
