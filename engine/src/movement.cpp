@@ -1,6 +1,7 @@
 #include "movement.hpp"
 #include "world.hpp"
 #include "entity.hpp"
+#include "config.hpp"
 #include "grid.hpp"
 #include <map>
 #include <algorithm>

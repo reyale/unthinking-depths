@@ -1,4 +1,5 @@
 add_library(engine STATIC
+    src/stats.cpp
     src/fixed.cpp
     src/rng.cpp
     src/grid.cpp

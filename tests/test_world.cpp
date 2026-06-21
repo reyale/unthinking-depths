@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "command.hpp"
+#include "config.hpp"
 #include "economy.hpp"
 #include "fixed.hpp"
 #include "movement.hpp"

@@ -29,6 +29,8 @@ inline constexpr int32_t CLAIM_HP_FLOOR = 1;
 
 // ---- Unit stats (v1 placeholders — iterate fast) -----------------------
 inline constexpr int32_t DRONE_HP = 20;
+inline constexpr int32_t DRONE_DMG = 0;   // Drones are economy units; they do not attack
+inline constexpr int32_t DRONE_RANGE = 0;
 inline constexpr int32_t DRONE_SIGHT = 4;
 inline constexpr int32_t DRONE_SPEED = 1;
 

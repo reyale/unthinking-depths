@@ -2,6 +2,7 @@
 #include "bot_iface.hpp"
 #include "combat.hpp"
 #include "command.hpp"
+#include "config.hpp"
 #include "match.hpp"
 #include "snapshot.hpp"
 #include "world.hpp"

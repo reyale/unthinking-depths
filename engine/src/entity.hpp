@@ -1,7 +1,7 @@
 #pragma once
 #include "ids.hpp"
 #include "grid.hpp"
-#include "config.hpp"
+#include "stats.hpp"
 #include <cstdint>
 #include <optional>
 #include <type_traits>
@@ -37,37 +37,6 @@ enum class OrderType : uint8_t {
   DeployClaim = 6,
 };
 
-// ---- Stat tables ----------------------------------------------------------
-
-struct UnitStats {
-  int32_t hp;
-  int32_t dmg;
-  int32_t range;
-  int32_t sight;
-  int32_t speed;
-  bool first_strike;
-  bool splash; // radius-1 splash (Artillery)
-  int32_t splash_radius;
-  int32_t collision_priority; // higher wins contested tile
-};
-
-constexpr UnitStats UNIT_STATS[] = {
-  // Drone
-  {cfg::DRONE_HP, 0, 0, cfg::DRONE_SIGHT, cfg::DRONE_SPEED, false, false, 0, /*priority*/ 1},
-  // Interceptor
-  {cfg::INTERCEPTOR_HP, cfg::INTERCEPTOR_DMG, cfg::INTERCEPTOR_RANGE, cfg::INTERCEPTOR_SIGHT,
-   cfg::INTERCEPTOR_SPEED, false, false, 0, /*priority*/ 3},
-  // Frigate
-  {cfg::FRIGATE_HP, cfg::FRIGATE_DMG, cfg::FRIGATE_RANGE, cfg::FRIGATE_SIGHT, cfg::FRIGATE_SPEED,
-   /*first_strike*/ true, false, 0, /*priority*/ 1},
-  // Artillery
-  {cfg::ARTILLERY_HP, cfg::ARTILLERY_DMG, cfg::ARTILLERY_RANGE, cfg::ARTILLERY_SIGHT,
-   cfg::ARTILLERY_SPEED, false, /*splash*/ true, cfg::ARTILLERY_SPLASH_RADIUS, /*priority*/ 1},
-};
-
-constexpr const UnitStats& stats_for(UnitType t) {
-  return UNIT_STATS[static_cast<uint8_t>(t)];
-}
 
 // ---- Unit -----------------------------------------------------------------
 
