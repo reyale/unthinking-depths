@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
     fprintf(stderr, "error: empty replay\n");
     return 1;
   }
-  fprintf(stderr, "Collected %zu frames. Starting viewer...\n", frames.size());
+  fprintf(stderr, "Ready (%zu ticks). Starting viewer...\n", frames.size() - 1);
 
   RawMode raw;
   size_t idx = 0;

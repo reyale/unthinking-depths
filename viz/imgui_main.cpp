@@ -133,7 +133,7 @@ int main(int argc, char** argv) {
   game::Map map = map_from_log(log);
   auto frames = game::replay_frames(log);
   if (frames.empty()) { fprintf(stderr, "error: empty replay\n"); return 1; }
-  fprintf(stderr, "Ready (%zu frames)\n", frames.size());
+  fprintf(stderr, "Ready (%zu ticks)\n", frames.size() - 1);
 
   // ---- GLFW + OpenGL setup -------------------------------------------------
 
@@ -162,7 +162,7 @@ int main(int argc, char** argv) {
   int    view    = -1;   // -1=god, 0/1=faction
   bool   playing = false;
   float  fps     = 10.0f;
-  float  cs      = 24.0f;  // cell size in pixels
+  float  cs      = 48.0f;  // tile width in pixels (height = cs/2 in iso)
   double last_t  = glfwGetTime();
   const int total = static_cast<int>(frames.size());
 
@@ -242,7 +242,7 @@ int main(int argc, char** argv) {
     ImGui::PopStyleColor();
     ImGui::SameLine();
     ImGui::SetNextItemWidth(65.0f);
-    ImGui::SliderFloat("px##z", &cs, 8.0f, 64.0f, "%.0f");
+    ImGui::SliderFloat("px##z", &cs, 16.0f, 128.0f, "%.0f");
     ImGui::SameLine();
     ImGui::Text("|");
     ImGui::SameLine();
@@ -269,44 +269,72 @@ int main(int argc, char** argv) {
 
     ImGui::Separator();
 
-    // ---- Scrollable grid child window ------------------------------------
-    ImGui::BeginChild("##grid", {0, 0}, false, ImGuiWindowFlags_HorizontalScrollbar);
+    // ---- Isometric grid (scrollable) -------------------------------------
+    ImGui::BeginChild("##grid", {0, 0}, false,
+        ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     ImDrawList* dl     = ImGui::GetWindowDrawList();
     ImVec2      origin = ImGui::GetCursorScreenPos();
 
+    // 2:1 isometric tile: width=cs, height=cs/2.
+    const float cw2 = cs * 0.5f;   // half tile width  (= diamond half-width)
+    const float ch2 = cs * 0.25f;  // half tile height (= diamond half-height)
+
+    // Place world tile (0,0)'s top vertex at (map.height*cw2, ch2) within the child.
+    const ImVec2 iso_org = {origin.x + (float)map.height * cw2,
+                             origin.y + ch2};
+
+    auto tile_ctr = [&](int32_t x, int32_t y) -> ImVec2 {
+      return {iso_org.x + (x - y) * cw2,
+              iso_org.y + (x + y) * ch2};
+    };
+
+    auto dim = [](ImVec4 c, float f) -> ImVec4 {
+      return {c.x * f, c.y * f, c.z * f, c.w};
+    };
+
     for (int32_t y = 0; y < map.height; ++y) {
       for (int32_t x = 0; x < map.width; ++x) {
-        CellData cd = make_cell(map, fr, view, x, y);
-        ImVec2 p0 = {origin.x + x * cs, origin.y + y * cs};
-        ImVec2 p1 = {p0.x + cs - 1.0f,  p0.y + cs - 1.0f};
+        CellData cd  = make_cell(map, fr, view, x, y);
+        ImVec2   ctr = tile_ctr(x, y);
 
-        dl->AddRectFilled(p0, p1, u32(cd.bg));
+        ImVec2 top    = {ctr.x,        ctr.y - ch2};
+        ImVec2 right  = {ctr.x + cw2,  ctr.y      };
+        ImVec2 bottom = {ctr.x,        ctr.y + ch2};
+        ImVec2 left   = {ctr.x - cw2,  ctr.y      };
+
+        // Upper half brighter, lower half darker — reads as a lit top face.
+        dl->AddTriangleFilled(top, right, left, u32(cd.bg));
+        dl->AddTriangleFilled(right, bottom, left, u32(dim(cd.bg, 0.70f)));
+
+        // Subtle tile edge outline.
+        dl->AddQuad(top, right, bottom, left,
+                    u32({0.0f, 0.0f, 0.0f, 0.40f}), 0.5f);
 
         if (cd.glyph) {
-          char buf[2] = {cd.glyph, '\0'};
-          ImVec2 tsz = ImGui::CalcTextSize(buf);
-          ImVec2 tp  = {p0.x + (cs - tsz.x) * 0.5f, p0.y + (cs - tsz.y) * 0.5f};
-          dl->AddText(tp, u32(cd.fg), buf);
+          char   buf[2] = {cd.glyph, '\0'};
+          ImVec2 tsz    = ImGui::CalcTextSize(buf);
+          dl->AddText({ctr.x - tsz.x * 0.5f, ctr.y - tsz.y * 0.5f},
+                      u32(cd.fg), buf);
 
-          // HP bar along the bottom edge of the cell
-          if (cd.hp >= 0 && cd.max_hp > 0 && cs >= 14.0f) {
-            float ratio = static_cast<float>(cd.hp) / static_cast<float>(cd.max_hp);
-            float bar_h = std::max(2.0f, cs * 0.08f);
-            ImVec2 b0   = {p0.x, p1.y - bar_h};
-            ImVec2 b1   = {p1.x, p1.y};
-            dl->AddRectFilled(b0, b1, u32({0.12f, 0.12f, 0.12f, 1.0f}));
-            // green → yellow → red
-            ImVec4 hc = ratio > 0.5f
+          // HP bar: thick line from right vertex toward bottom vertex.
+          if (cd.hp >= 0 && cd.max_hp > 0 && cs >= 32.0f) {
+            float  ratio  = static_cast<float>(cd.hp) / static_cast<float>(cd.max_hp);
+            ImVec2 hp_end = {right.x + ratio * (bottom.x - right.x),
+                             right.y + ratio * (bottom.y - right.y)};
+            float  bw     = std::max(2.0f, ch2 * 0.3f);
+            ImVec4 hc     = ratio > 0.5f
                 ? ImVec4{0.2f + (1.0f - ratio) * 1.6f, 0.85f, 0.2f, 1.0f}
                 : ImVec4{1.0f, ratio * 1.7f, 0.1f, 1.0f};
-            dl->AddRectFilled(b0, {p0.x + (cs - 1.0f) * ratio, p1.y}, u32(hc));
+            dl->AddLine(right, bottom, u32({0.08f, 0.08f, 0.08f, 1.0f}), bw);
+            dl->AddLine(right, hp_end, u32(hc), bw);
           }
         }
       }
     }
 
-    // Reserve layout space so the child window scroll extents are correct
-    ImGui::Dummy({map.width * cs, map.height * cs});
+    // Reserve scroll extents for the full isometric grid.
+    ImGui::Dummy({(float)(map.width + map.height) * cw2 + cw2,
+                  (float)(map.width + map.height) * ch2 + ch2});
     ImGui::EndChild();
 
     ImGui::End();
