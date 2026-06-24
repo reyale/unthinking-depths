@@ -45,45 +45,61 @@ Bots compile to `wasm32` via any LLVM toolchain (Rust, C++, Zig, AssemblyScript,
 engine/       Pure deterministic simulation — no I/O, no WASM in the hot path
 runner/       Wasmtime host; wraps the engine for untrusted .wasm bots
 sdk/cpp/      Bot template, ABI headers, local tester
-profiler/     Scenario suite — exact fuel/memory reports pre-match
-harness/      Tournament/ladder runner and stats aggregation
-viz/          Replay renderer (re-simulates via engine)
+viz/          Replay renderers (terminal, ncurses, Dear ImGui, browser/WASM)
 maps/         Hand-authored point-symmetric maps
 docs/         Design doc and implementation plan
 tests/        Unit and golden-replay tests
+tools/        CLI utilities: ud_run (match runner), ud_mapgen, ud_mapcheck
 ```
 
 ## Building
 
-Requires GCC 14+, CMake 3.16+.
+Requires GCC 14+, CMake 3.16+, libglfw3-dev (optional, for the ImGui visualizer).
 
 ```bash
-# Configure (once, or when CMakeLists changes)
 cmake -B build -DCMAKE_BUILD_TYPE=Debug
-
-# Build
 cmake --build build -j$(nproc)
-
-# Test
 cd build && ctest --output-on-failure
 ```
+
+## Running a match
+
+```bash
+# Run two WASM bots and write a replay
+./build/tools/ud_run bots/my_bot.wasm bots/opponent.wasm --out match.ud
+
+# Watch the replay (terminal)
+./build/viz/ud_viz match.ud
+
+# Watch the replay (Dear ImGui — isometric, requires GLFW)
+./build/viz/ud_viz_imgui match.ud
+```
+
+## Browser replay viewer
+
+Build a self-contained `web/index.html` that runs in any browser — no install required for the viewer:
+
+```bash
+# Prerequisites: emsdk activated, CMake build done once (fetches imgui/xxhash)
+cd viz && make -f Makefile.em
+
+# Serve locally and open http://localhost:8080
+make -f Makefile.em serve
+```
+
+Drop any `.ud` replay file onto the page to load it. Same controls as the desktop viewer.
 
 ## Coverage
 
 Requires `gcovr` (`pip install gcovr`).
 
 ```bash
-# Configure a separate coverage build (once)
 cmake -B build-cov -DCMAKE_BUILD_TYPE=Coverage
-
-# Build and run — produces HTML + XML reports
 cmake --build build-cov --target coverage
-
-# Open the report
 xdg-open build-cov/coverage/index.html
 ```
 
-For editor LSP support, symlink the compile commands:
+For editor LSP support:
 
 ```bash
 ln -s build/compile_commands.json compile_commands.json
