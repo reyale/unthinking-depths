@@ -4,3 +4,5 @@ compile_commands.json
 Testing/
 *.ud
 *.ud.zst
+viz/web/
+.python-version

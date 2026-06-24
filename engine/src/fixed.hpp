@@ -1,4 +1,5 @@
 #pragma once
+#include <compare>
 #include <cstdint>
 
 // __int128 is a GCC/Clang extension; suppress the pedantic warning site-wide

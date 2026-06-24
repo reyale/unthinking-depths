@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Unthinking Depths Replay</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #0a0a0e; overflow: hidden; }
+    canvas#canvas { display: block; width: 100vw; height: 100vh; }
+
+    #boot-hint {
+      position: fixed; inset: 0; pointer-events: none; z-index: 10;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #boot-hint p {
+      font-family: monospace; font-size: 18px; color: #666;
+      border: 2px dashed #333; padding: 32px 56px; border-radius: 8px;
+      background: rgba(10,10,14,0.7); text-align: center; line-height: 1.6;
+    }
+    body.dragging #boot-hint p { border-color: #6af; color: #adf; }
+    #boot-hint.hidden { display: none; }
+
+    #spinner {
+      position: fixed; bottom: 16px; right: 20px;
+      font-family: monospace; font-size: 13px; color: #555;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+
+  <div id="boot-hint">
+    <p id="boot-msg">Loading…</p>
+  </div>
+  <div id="spinner"></div>
+
+  <script>
+    var bootHint    = document.getElementById('boot-hint');
+    var bootMsg     = document.getElementById('boot-msg');
+    var spinner     = document.getElementById('spinner');
+    var spinChars   = ['|','/','-','\\'];
+    var spinIdx     = 0;
+    var runtimeReady = false;   // set in onRuntimeInitialized, not calledRun
+
+    var spinTimer = setInterval(function() {
+      spinner.textContent = spinChars[spinIdx++ % spinChars.length];
+    }, 120);
+
+    function _doLoad(data) {
+      bootMsg.innerHTML = 'Re-simulating… (may take a few seconds)';
+      // yield to the browser so the message renders before the blocking C++ call
+      setTimeout(function() {
+        try {
+          Module.FS.writeFile('/replay.ud', data);
+          Module._load_replay_from_fs();
+          bootHint.classList.add('hidden');
+        } catch(e) {
+          bootMsg.innerHTML = '<span style="color:#f66">Error: ' + e.message + '</span>';
+        }
+      }, 0);
+    }
+
+    var Module = {
+      canvas: document.getElementById('canvas'),
+      onRuntimeInitialized: function() {
+        runtimeReady = true;
+        clearInterval(spinTimer);
+        spinner.textContent = '';
+        bootMsg.innerHTML = 'Drop a <code>.ud</code> replay file here<br>'
+          + '<small style="color:#555">Space=play/pause &nbsp; ←/→=step &nbsp; G/0/1=view &nbsp; Scroll=zoom</small>';
+        if (window._pendingReplay) {
+          _doLoad(window._pendingReplay);
+          window._pendingReplay = null;
+        }
+      },
+      print:    function(t) { console.log(t); },
+      printErr: function(t) { console.warn(t); }
+    };
+  </script>
+  {{{ SCRIPT }}}
+  <script>
+    document.addEventListener('dragenter', function()  { document.body.classList.add('dragging'); });
+    document.addEventListener('dragleave', function(e) {
+      if (!e.relatedTarget) document.body.classList.remove('dragging');
+    });
+    document.addEventListener('dragover',  function(e) { e.preventDefault(); });
+    document.addEventListener('drop', function(e) {
+      e.preventDefault();
+      document.body.classList.remove('dragging');
+      var file = e.dataTransfer.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(evt) {
+        var data = new Uint8Array(evt.target.result);
+        if (runtimeReady) {
+          _doLoad(data);
+        } else {
+          window._pendingReplay = data;
+          bootMsg.innerHTML = 'File queued — finishing load…';
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    });
+  </script>
+</body>
+</html>

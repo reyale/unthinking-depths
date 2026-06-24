@@ -1,6 +1,8 @@
 #include "file_io.hpp"
 #include <fstream>
+#ifndef __EMSCRIPTEN__
 #include <zstd.h>
+#endif
 
 namespace game {
 
@@ -41,6 +43,8 @@ private:
 };
 
 // ---- Zstd ------------------------------------------------------------------
+
+#ifndef __EMSCRIPTEN__
 
 class ZstdFileWriter : public FileWriter {
 public:
@@ -188,6 +192,8 @@ private:
   bool eof_{false};
 };
 
+#endif // !__EMSCRIPTEN__
+
 // ---- Extension deduction + factories ----------------------------------------
 
 FileIoType deduce_file_io_type(const std::string& path) {
@@ -196,7 +202,11 @@ FileIoType deduce_file_io_type(const std::string& path) {
     throw std::runtime_error("cannot deduce file type: no extension in '" + path + "'");
   std::string ext = path.substr(pos);
   if (ext == ".zst" || ext == ".zstd")
+#ifndef __EMSCRIPTEN__
     return FileIoType::Zstd;
+#else
+    throw std::runtime_error("Zstd not supported in browser build — use .ud files");
+#endif
   if (ext == ".ud")
     return FileIoType::Raw;
   throw std::runtime_error("unknown file extension '" + ext + "'");
@@ -204,7 +214,11 @@ FileIoType deduce_file_io_type(const std::string& path) {
 
 std::unique_ptr<FileWriter> make_file_writer(const std::string& path, FileIoType type) {
   switch (type) {
+#ifndef __EMSCRIPTEN__
     case FileIoType::Zstd: return std::make_unique<ZstdFileWriter>(path);
+#else
+    case FileIoType::Zstd: throw std::runtime_error("Zstd not supported in browser build");
+#endif
     case FileIoType::Raw:  return std::make_unique<RawFileWriter>(path);
   }
   return std::make_unique<RawFileWriter>(path);
@@ -212,7 +226,11 @@ std::unique_ptr<FileWriter> make_file_writer(const std::string& path, FileIoType
 
 std::unique_ptr<FileReader> make_file_reader(const std::string& path, FileIoType type) {
   switch (type) {
+#ifndef __EMSCRIPTEN__
     case FileIoType::Zstd: return std::make_unique<ZstdFileReader>(path);
+#else
+    case FileIoType::Zstd: throw std::runtime_error("Zstd not supported in browser build");
+#endif
     case FileIoType::Raw:  return std::make_unique<RawFileReader>(path);
   }
   return std::make_unique<RawFileReader>(path);

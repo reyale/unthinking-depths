@@ -1,4 +1,5 @@
 #pragma once
+#include <compare>
 #include <cstdint>
 #include <vector>
 #include <cassert>
