@@ -7,3 +7,11 @@ target_link_libraries(ud_mapgen PRIVATE maps_lib)
 
 add_executable(ud_mapcheck ud_mapcheck.cpp)
 target_link_libraries(ud_mapcheck PRIVATE maps_lib)
+
+add_executable(ud_run ud_run.cpp)
+target_link_libraries(ud_run PRIVATE runner_lib maps_lib)
+target_include_directories(ud_run PRIVATE
+    ${CMAKE_SOURCE_DIR}/engine/src
+    ${CMAKE_SOURCE_DIR}/maps
+    ${CMAKE_SOURCE_DIR}/runner
+)

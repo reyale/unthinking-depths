@@ -16,3 +16,45 @@ if(CURSES_FOUND)
 else()
   message(STATUS "ncurses not found — ud_viz_nc will not be built")
 endif()
+
+# ---- Optional: Dear ImGui visualizer ----------------------------------------
+# Requires OpenGL and GLFW3 (e.g. apt install libglfw3-dev on Ubuntu).
+# Dear ImGui is fetched automatically via FetchContent.
+find_package(OpenGL QUIET)
+find_package(glfw3 3.3 QUIET)
+
+if(OpenGL_FOUND AND glfw3_FOUND)
+  message(STATUS "Found OpenGL and GLFW — building ud_viz_imgui")
+
+  include(FetchContent)
+  FetchContent_Declare(imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG        v1.91.6   # any >= 1.87 should work; bump as desired
+    GIT_SHALLOW    TRUE
+  )
+  FetchContent_MakeAvailable(imgui)
+
+  add_library(ud_imgui STATIC
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+  )
+  target_include_directories(ud_imgui PUBLIC
+    ${imgui_SOURCE_DIR}
+    ${imgui_SOURCE_DIR}/backends
+  )
+  target_link_libraries(ud_imgui PUBLIC glfw OpenGL::GL)
+  target_compile_options(ud_imgui PRIVATE -w)  # imgui ships with minor warnings
+
+  add_executable(ud_viz_imgui imgui_main.cpp)
+  target_include_directories(ud_viz_imgui PRIVATE
+    ${CMAKE_SOURCE_DIR}/engine/src
+  )
+  target_link_libraries(ud_viz_imgui PRIVATE engine ud_imgui)
+
+else()
+  message(STATUS "OpenGL or GLFW not found — skipping ud_viz_imgui (apt install libglfw3-dev)")
+endif()
