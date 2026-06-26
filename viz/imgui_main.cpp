@@ -134,7 +134,7 @@ struct App {
   int    total   = 0;
   int    view    = -2;
   bool   playing = false;
-  float  fps     = 10.0f;
+  float  fps     = 15.0f;
   float  cs      = 48.0f;
   double last_t  = 0.0;
   char   path_buf[512] = {};
