@@ -15,7 +15,30 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstring>
+#include <string>
 #include <vector>
+
+// ---- Native file dialog (Linux: zenity → kdialog → nothing) ---------------
+
+static std::string pick_file() {
+  const char* cmds[] = {
+    "zenity --file-selection --title='Open replay' --file-filter='UD replay | *.ud' 2>/dev/null",
+    "kdialog --getopenfilename . '*.ud' 2>/dev/null",
+  };
+  for (const char* cmd : cmds) {
+    FILE* f = popen(cmd, "r");
+    if (!f) continue;
+    char buf[1024] = {};
+    bool got = (fgets(buf, sizeof(buf), f) != nullptr);
+    pclose(f);
+    if (!got || buf[0] == '\0') continue;
+    size_t n = strlen(buf);
+    if (n > 0 && buf[n - 1] == '\n') buf[n - 1] = '\0';
+    return buf;
+  }
+  return {};
+}
 
 // ---- Map reconstruction ---------------------------------------------------
 
@@ -54,7 +77,6 @@ struct CellData {
 
 static CellData make_cell(const game::Map& map, const game::FrameState& fr,
                            int view, int32_t x, int32_t y) {
-  // Visibility (mirrors snapshot.cpp fog logic)
   bool vis = (view == -1);
   if (!vis) {
     for (const auto& u : fr.units) {
@@ -71,7 +93,6 @@ static CellData make_cell(const game::Map& map, const game::FrameState& fr,
   }
   if (!vis) return {kFogBg};
 
-  // Terrain background
   ImVec4 bg;
   switch (map.tile_at({x, y}).terrain) {
     case game::Terrain::Asteroid:     bg = kAsteroid; break;
@@ -80,7 +101,6 @@ static CellData make_cell(const game::Map& map, const game::FrameState& fr,
     default:                          bg = kOpenBg;   break;
   }
 
-  // Structure (checked first; units overwrite if colocated)
   for (const auto& s : fr.structures) {
     if (s.pos.x != x || s.pos.y != y) continue;
     char g = s.type == game::StructureType::CommandCore ? 'C' :
@@ -89,7 +109,6 @@ static CellData make_cell(const game::Map& map, const game::FrameState& fr,
     return {bg, g, fg, s.hp, s.max_hp};
   }
 
-  // Unit (last unit wins if multiple on same tile)
   const game::UnitFrame* top = nullptr;
   for (const auto& u : fr.units)
     if (u.pos.x == x && u.pos.y == y) top = &u;
@@ -104,39 +123,51 @@ static CellData make_cell(const game::Map& map, const game::FrameState& fr,
   return {bg};
 }
 
+// ---- App state ------------------------------------------------------------
+
+struct App {
+  bool   loaded  = false;
+  std::string error;
+  game::Map map;
+  std::vector<game::FrameState> frames;
+  int    cur     = 0;
+  int    total   = 0;
+  int    view    = -2;
+  bool   playing = false;
+  float  fps     = 10.0f;
+  float  cs      = 48.0f;
+  double last_t  = 0.0;
+  char   path_buf[512] = {};
+} g;
+
+static void try_load(const char* path) {
+  g.playing = false;
+  g.error.clear();
+  try {
+    auto log = game::read_replay_file(path);
+    if (game::replay(log) != log.expected_hash)
+      fprintf(stderr, "warning: hash mismatch — replay may not reproduce original match\n");
+    g.map    = map_from_log(log);
+    g.frames = game::replay_frames(log);
+    g.cur    = 0;
+    g.total  = static_cast<int>(g.frames.size());
+    g.loaded = true;
+    fprintf(stderr, "Loaded: %zu ticks on %dx%d map\n",
+            log.ticks.size(), log.map_w, log.map_h);
+  } catch (const std::exception& e) {
+    g.loaded = false;
+    g.error  = e.what();
+    fprintf(stderr, "error: %s\n", e.what());
+  }
+}
+
 // ---- Main -----------------------------------------------------------------
 
 int main(int argc, char** argv) {
-  if (argc < 2) {
-    fprintf(stderr,
-        "usage: ud_viz_imgui <replay.ud>\n"
-        "  Space=play/pause  Arrows=step  U/G/0/1=view  Scroll=zoom  Q=quit\n");
-    return 1;
+  if (argc >= 2) {
+    strncpy(g.path_buf, argv[1], sizeof(g.path_buf) - 1);
+    try_load(argv[1]);
   }
-
-  game::ReplayLog log;
-  try {
-    log = game::read_replay_file(argv[1]);
-  } catch (const game::ReplayVersionError& e) {
-    fprintf(stderr, "error: %s\n       This replay requires a different engine build.\n",
-            e.what());
-    return 1;
-  } catch (const std::exception& e) {
-    fprintf(stderr, "error: %s\n", e.what());
-    return 1;
-  }
-
-  fprintf(stderr, "Re-simulating %zu ticks on %dx%d map...\n",
-          log.ticks.size(), log.map_w, log.map_h);
-  if (game::replay(log) != log.expected_hash)
-    fprintf(stderr, "warning: hash mismatch — replay may not reproduce original match\n");
-
-  game::Map map = map_from_log(log);
-  auto frames = game::replay_frames(log);
-  if (frames.empty()) { fprintf(stderr, "error: empty replay\n"); return 1; }
-  fprintf(stderr, "Ready (%zu ticks)\n", frames.size() - 1);
-
-  // ---- GLFW + OpenGL setup -------------------------------------------------
 
   if (!glfwInit()) { fprintf(stderr, "glfwInit failed\n"); return 1; }
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -144,41 +175,37 @@ int main(int argc, char** argv) {
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
 
-  GLFWwindow* win = glfwCreateWindow(1280, 800, "Unthinking Depths", nullptr, nullptr);
+  GLFWwindow* win = glfwCreateWindow(1520, 860, "Unthinking Depths", nullptr, nullptr);
   if (!win) { glfwTerminate(); fprintf(stderr, "glfwCreateWindow failed\n"); return 1; }
   glfwMakeContextCurrent(win);
   glfwSwapInterval(1);
 
+  glfwSetDropCallback(win, [](GLFWwindow*, int count, const char** paths) {
+    if (count > 0) {
+      strncpy(g.path_buf, paths[0], sizeof(g.path_buf) - 1);
+      try_load(paths[0]);
+    }
+  });
+
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   ImGui::StyleColorsDark();
-  ImGui::GetIO().IniFilename = nullptr; // don't write imgui.ini
+  ImGui::GetIO().IniFilename = nullptr;
 
   ImGui_ImplGlfw_InitForOpenGL(win, true);
   ImGui_ImplOpenGL3_Init("#version 330");
 
-  // ---- Playback state ------------------------------------------------------
-
-  int    cur     = 0;
-  int    view    = -2;   // -2=union fog, -1=god, 0/1=faction
-  bool   playing = false;
-  float  fps     = 10.0f;
-  float  cs      = 48.0f;  // tile width in pixels (height = cs/2 in iso)
-  double last_t  = glfwGetTime();
-  const int total = static_cast<int>(frames.size());
-
-  // ---- Main loop -----------------------------------------------------------
+  g.last_t = glfwGetTime();
 
   while (!glfwWindowShouldClose(win)) {
     glfwPollEvents();
     ImGuiIO& io = ImGui::GetIO();
 
-    // Auto-advance
-    if (playing) {
+    if (g.loaded && g.playing) {
       double now = glfwGetTime();
-      if (now - last_t >= 1.0 / static_cast<double>(fps)) {
-        if (cur + 1 < total) ++cur; else playing = false;
-        last_t = now;
+      if (now - g.last_t >= 1.0 / static_cast<double>(g.fps)) {
+        if (g.cur + 1 < g.total) ++g.cur; else g.playing = false;
+        g.last_t = now;
       }
     }
 
@@ -186,164 +213,187 @@ int main(int argc, char** argv) {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    // Mouse-wheel zoom (only when not hovering an ImGui widget)
     if (!io.WantCaptureMouse)
-      cs = std::clamp(cs + io.MouseWheel * 2.0f, 8.0f, 64.0f);
+      g.cs = std::clamp(g.cs + io.MouseWheel * 2.0f, 8.0f, 64.0f);
 
-    // Keyboard shortcuts
     if (!io.WantCaptureKeyboard) {
-      if (ImGui::IsKeyPressed(ImGuiKey_Space)) {
-        playing = !playing;
-        last_t = glfwGetTime();
+      if (g.loaded) {
+        if (ImGui::IsKeyPressed(ImGuiKey_Space)) {
+          g.playing = !g.playing;
+          g.last_t  = glfwGetTime();
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_RightArrow) && g.cur + 1 < g.total)
+          { ++g.cur; g.playing = false; }
+        if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow) && g.cur > 0)
+          { --g.cur; g.playing = false; }
       }
-      if (ImGui::IsKeyPressed(ImGuiKey_RightArrow) && cur + 1 < total) { ++cur; playing = false; }
-      if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow)  && cur > 0)         { --cur; playing = false; }
-      if (ImGui::IsKeyPressed(ImGuiKey_U)) view = -2;
-      if (ImGui::IsKeyPressed(ImGuiKey_G)) view = -1;
-      if (ImGui::IsKeyPressed(ImGuiKey_0)) view = 0;
-      if (ImGui::IsKeyPressed(ImGuiKey_1)) view = 1;
+      if (ImGui::IsKeyPressed(ImGuiKey_U)) g.view = -2;
+      if (ImGui::IsKeyPressed(ImGuiKey_G)) g.view = -1;
+      if (ImGui::IsKeyPressed(ImGuiKey_0)) g.view = 0;
+      if (ImGui::IsKeyPressed(ImGuiKey_1)) g.view = 1;
       if (ImGui::IsKeyPressed(ImGuiKey_Q)) glfwSetWindowShouldClose(win, GLFW_TRUE);
     }
 
-    // ---- Full-screen host window ------------------------------------------
     ImGui::SetNextWindowPos({0, 0});
     ImGui::SetNextWindowSize(io.DisplaySize);
     ImGui::Begin("##ud", nullptr,
         ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus);
 
-    // ---- Control bar -------------------------------------------------------
-    const auto& fr = frames[static_cast<size_t>(cur)];
-
-    ImGui::SetNextItemWidth(300.0f);
-    char tick_fmt[32];
-    snprintf(tick_fmt, sizeof(tick_fmt), "%%d / %d", total - 1);
-    if (ImGui::SliderInt("##t", &cur, 0, total - 1, tick_fmt)) playing = false;
-    ImGui::SameLine();
-    if (ImGui::Button(playing ? "Pause" : " Play ")) { playing = !playing; last_t = glfwGetTime(); }
-    ImGui::SameLine();
-    if (ImGui::ArrowButton("##l", ImGuiDir_Left)  && cur > 0)      { --cur; playing = false; }
-    ImGui::SameLine(0, 2);
-    if (ImGui::ArrowButton("##r", ImGuiDir_Right) && cur+1 < total){ ++cur; playing = false; }
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(70.0f);
-    ImGui::SliderFloat("fps##s", &fps, 1.0f, 30.0f, "%.0f");
-    ImGui::SameLine();
-    ImGui::Text("|");
-    ImGui::SameLine();
-    if (ImGui::Button("Union")) view = -2;
-    ImGui::SameLine();
-    if (ImGui::Button("God")) view = -1;
-    ImGui::SameLine();
-    ImGui::PushStyleColor(ImGuiCol_Button,
-        ImVec4{kFactionA.x * 0.6f, kFactionA.y * 0.6f, kFactionA.z * 0.6f, 1.0f});
-    if (ImGui::Button(" A ")) view = 0;
-    ImGui::PopStyleColor();
-    ImGui::SameLine();
-    ImGui::PushStyleColor(ImGuiCol_Button,
-        ImVec4{kFactionB.x * 0.6f, kFactionB.y * 0.6f, kFactionB.z * 0.6f, 1.0f});
-    if (ImGui::Button(" B ")) view = 1;
-    ImGui::PopStyleColor();
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(65.0f);
-    ImGui::SliderFloat("px##z", &cs, 16.0f, 128.0f, "%.0f");
-    ImGui::SameLine();
-    ImGui::Text("|");
-    ImGui::SameLine();
-    ImGui::TextColored(kFactionA, "A  e:%-4d a:%d",
-        fr.resources[0].energy, fr.resources[0].alloy);
-    ImGui::SameLine();
-    ImGui::TextColored(kFactionB, "B  e:%-4d a:%d",
-        fr.resources[1].energy, fr.resources[1].alloy);
-
-    if (fr.result.has_value()) {
-      const auto& res = *fr.result;
-      ImGui::SameLine();
-      if (res.reason == game::WinReason::Draw) {
-        ImGui::TextColored({0.9f, 0.85f, 0.2f, 1.0f}, " | DRAW");
-      } else {
-        ImVec4 wc = res.winner.value == 0 ? kFactionA : kFactionB;
-        const char* why =
-            res.reason == game::WinReason::BaseDestroyed      ? "base" :
-            res.reason == game::WinReason::TerritoryThreshold ? "territory" : "tick cap";
-        ImGui::TextColored(wc, " | %s wins (%s)",
-            res.winner.value == 0 ? "A" : "B", why);
+    // ---- File loader bar ---------------------------------------------------
+    if (ImGui::Button("Open")) {
+      std::string picked = pick_file();
+      if (!picked.empty()) {
+        strncpy(g.path_buf, picked.c_str(), sizeof(g.path_buf) - 1);
+        try_load(g.path_buf);
       }
     }
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(360.0f);
+    if (ImGui::InputText("##path", g.path_buf, sizeof(g.path_buf),
+                         ImGuiInputTextFlags_EnterReturnsTrue))
+      try_load(g.path_buf);
+    if (!g.error.empty()) {
+      ImGui::SameLine();
+      ImGui::TextColored({1.0f, 0.4f, 0.4f, 1.0f}, "%s", g.error.c_str());
+    }
 
-    ImGui::Separator();
+    if (g.loaded) {
+      // ---- Playback control bar --------------------------------------------
+      const auto& fr = g.frames[static_cast<size_t>(g.cur)];
 
-    // ---- Isometric grid (scrollable) -------------------------------------
-    ImGui::BeginChild("##grid", {0, 0}, false,
-        ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
-    ImDrawList* dl     = ImGui::GetWindowDrawList();
-    ImVec2      origin = ImGui::GetCursorScreenPos();
+      ImGui::SameLine();
+      ImGui::Text("|");
+      ImGui::SameLine();
+      ImGui::SetNextItemWidth(260.0f);
+      char tick_fmt[32];
+      snprintf(tick_fmt, sizeof(tick_fmt), "%%d / %d", g.total - 1);
+      if (ImGui::SliderInt("##t", &g.cur, 0, g.total - 1, tick_fmt)) g.playing = false;
+      ImGui::SameLine();
+      if (ImGui::Button(g.playing ? "Pause" : " Play "))
+        { g.playing = !g.playing; g.last_t = glfwGetTime(); }
+      ImGui::SameLine();
+      if (ImGui::ArrowButton("##l", ImGuiDir_Left)  && g.cur > 0)
+        { --g.cur; g.playing = false; }
+      ImGui::SameLine(0, 2);
+      if (ImGui::ArrowButton("##r", ImGuiDir_Right) && g.cur + 1 < g.total)
+        { ++g.cur; g.playing = false; }
+      ImGui::SameLine();
+      ImGui::SetNextItemWidth(70.0f);
+      ImGui::SliderFloat("fps##s", &g.fps, 1.0f, 30.0f, "%.0f");
+      ImGui::SameLine();
+      ImGui::Text("|");
+      ImGui::SameLine();
+      if (ImGui::Button("Union")) g.view = -2;
+      ImGui::SameLine();
+      if (ImGui::Button("God")) g.view = -1;
+      ImGui::SameLine();
+      ImGui::PushStyleColor(ImGuiCol_Button,
+          ImVec4{kFactionA.x * 0.6f, kFactionA.y * 0.6f, kFactionA.z * 0.6f, 1.0f});
+      if (ImGui::Button(" A ")) g.view = 0;
+      ImGui::PopStyleColor();
+      ImGui::SameLine();
+      ImGui::PushStyleColor(ImGuiCol_Button,
+          ImVec4{kFactionB.x * 0.6f, kFactionB.y * 0.6f, kFactionB.z * 0.6f, 1.0f});
+      if (ImGui::Button(" B ")) g.view = 1;
+      ImGui::PopStyleColor();
+      ImGui::SameLine();
+      ImGui::SetNextItemWidth(65.0f);
+      ImGui::SliderFloat("px##z", &g.cs, 16.0f, 128.0f, "%.0f");
+      ImGui::SameLine();
+      ImGui::TextColored(kFactionA, "A  e:%-4d a:%d",
+          fr.resources[0].energy, fr.resources[0].alloy);
+      ImGui::SameLine();
+      ImGui::TextColored(kFactionB, "B  e:%-4d a:%d",
+          fr.resources[1].energy, fr.resources[1].alloy);
 
-    // 2:1 isometric tile: width=cs, height=cs/2.
-    const float cw2 = cs * 0.5f;   // half tile width  (= diamond half-width)
-    const float ch2 = cs * 0.25f;  // half tile height (= diamond half-height)
+      if (fr.result.has_value()) {
+        const auto& res = *fr.result;
+        ImGui::SameLine();
+        if (res.reason == game::WinReason::Draw) {
+          ImGui::TextColored({0.9f, 0.85f, 0.2f, 1.0f}, " | DRAW");
+        } else {
+          ImVec4 wc = res.winner.value == 0 ? kFactionA : kFactionB;
+          const char* why =
+              res.reason == game::WinReason::BaseDestroyed      ? "base" :
+              res.reason == game::WinReason::TerritoryThreshold ? "territory" : "tick cap";
+          ImGui::TextColored(wc, " | %s wins (%s)",
+              res.winner.value == 0 ? "A" : "B", why);
+        }
+      }
 
-    // Place world tile (0,0)'s top vertex at (map.height*cw2, ch2) within the child.
-    const ImVec2 iso_org = {origin.x + (float)map.height * cw2,
-                             origin.y + ch2};
+      ImGui::Separator();
 
-    auto tile_ctr = [&](int32_t x, int32_t y) -> ImVec2 {
-      return {iso_org.x + (x - y) * cw2,
-              iso_org.y + (x + y) * ch2};
-    };
+      // ---- Isometric grid --------------------------------------------------
+      ImGui::BeginChild("##grid", {0, 0}, false,
+          ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+      ImDrawList* dl     = ImGui::GetWindowDrawList();
+      ImVec2      origin = ImGui::GetCursorScreenPos();
 
-    auto dim = [](ImVec4 c, float f) -> ImVec4 {
-      return {c.x * f, c.y * f, c.z * f, c.w};
-    };
+      const float cw2 = g.cs * 0.5f;
+      const float ch2 = g.cs * 0.25f;
+      const ImVec2 iso_org = {origin.x + (float)g.map.height * cw2,
+                               origin.y + ch2};
 
-    for (int32_t y = 0; y < map.height; ++y) {
-      for (int32_t x = 0; x < map.width; ++x) {
-        CellData cd  = make_cell(map, fr, view, x, y);
-        ImVec2   ctr = tile_ctr(x, y);
+      auto tile_ctr = [&](int32_t x, int32_t y) -> ImVec2 {
+        return {iso_org.x + (x - y) * cw2,
+                iso_org.y + (x + y) * ch2};
+      };
 
-        ImVec2 top    = {ctr.x,        ctr.y - ch2};
-        ImVec2 right  = {ctr.x + cw2,  ctr.y      };
-        ImVec2 bottom = {ctr.x,        ctr.y + ch2};
-        ImVec2 left   = {ctr.x - cw2,  ctr.y      };
+      auto dim = [](ImVec4 c, float f) -> ImVec4 {
+        return {c.x * f, c.y * f, c.z * f, c.w};
+      };
 
-        // Upper half brighter, lower half darker — reads as a lit top face.
-        dl->AddTriangleFilled(top, right, left, u32(cd.bg));
-        dl->AddTriangleFilled(right, bottom, left, u32(dim(cd.bg, 0.70f)));
+      for (int32_t y = 0; y < g.map.height; ++y) {
+        for (int32_t x = 0; x < g.map.width; ++x) {
+          CellData cd  = make_cell(g.map, fr, g.view, x, y);
+          ImVec2   ctr = tile_ctr(x, y);
 
-        // Subtle tile edge outline.
-        dl->AddQuad(top, right, bottom, left,
-                    u32({0.0f, 0.0f, 0.0f, 0.40f}), 0.5f);
+          ImVec2 top    = {ctr.x,        ctr.y - ch2};
+          ImVec2 right  = {ctr.x + cw2,  ctr.y      };
+          ImVec2 bottom = {ctr.x,        ctr.y + ch2};
+          ImVec2 left   = {ctr.x - cw2,  ctr.y      };
 
-        if (cd.glyph) {
-          char   buf[2] = {cd.glyph, '\0'};
-          ImVec2 tsz    = ImGui::CalcTextSize(buf);
-          dl->AddText({ctr.x - tsz.x * 0.5f, ctr.y - tsz.y * 0.5f},
-                      u32(cd.fg), buf);
+          dl->AddTriangleFilled(top, right, left, u32(cd.bg));
+          dl->AddTriangleFilled(right, bottom, left, u32(dim(cd.bg, 0.70f)));
+          dl->AddQuad(top, right, bottom, left,
+                      u32({0.0f, 0.0f, 0.0f, 0.40f}), 0.5f);
 
-          // HP bar: thick line from right vertex toward bottom vertex.
-          if (cd.hp >= 0 && cd.max_hp > 0 && cs >= 32.0f) {
-            float  ratio  = static_cast<float>(cd.hp) / static_cast<float>(cd.max_hp);
-            ImVec2 hp_end = {right.x + ratio * (bottom.x - right.x),
-                             right.y + ratio * (bottom.y - right.y)};
-            float  bw     = std::max(2.0f, ch2 * 0.3f);
-            ImVec4 hc     = ratio > 0.5f
-                ? ImVec4{0.2f + (1.0f - ratio) * 1.6f, 0.85f, 0.2f, 1.0f}
-                : ImVec4{1.0f, ratio * 1.7f, 0.1f, 1.0f};
-            dl->AddLine(right, bottom, u32({0.08f, 0.08f, 0.08f, 1.0f}), bw);
-            dl->AddLine(right, hp_end, u32(hc), bw);
+          if (cd.glyph) {
+            char   buf[2] = {cd.glyph, '\0'};
+            ImVec2 tsz    = ImGui::CalcTextSize(buf);
+            dl->AddText({ctr.x - tsz.x * 0.5f, ctr.y - tsz.y * 0.5f},
+                        u32(cd.fg), buf);
+
+            if (cd.hp >= 0 && cd.max_hp > 0 && g.cs >= 32.0f) {
+              float  ratio  = static_cast<float>(cd.hp) / static_cast<float>(cd.max_hp);
+              ImVec2 hp_end = {right.x + ratio * (bottom.x - right.x),
+                               right.y + ratio * (bottom.y - right.y)};
+              float  bw     = std::max(2.0f, ch2 * 0.3f);
+              ImVec4 hc     = ratio > 0.5f
+                  ? ImVec4{0.2f + (1.0f - ratio) * 1.6f, 0.85f, 0.2f, 1.0f}
+                  : ImVec4{1.0f, ratio * 1.7f, 0.1f, 1.0f};
+              dl->AddLine(right, bottom, u32({0.08f, 0.08f, 0.08f, 1.0f}), bw);
+              dl->AddLine(right, hp_end, u32(hc), bw);
+            }
           }
         }
       }
-    }
 
-    // Reserve scroll extents for the full isometric grid.
-    ImGui::Dummy({(float)(map.width + map.height) * cw2 + cw2,
-                  (float)(map.width + map.height) * ch2 + ch2});
-    ImGui::EndChild();
+      ImGui::Dummy({(float)(g.map.width + g.map.height) * cw2 + cw2,
+                    (float)(g.map.width + g.map.height) * ch2 + ch2});
+      ImGui::EndChild();
+
+    } else {
+      // ---- No replay loaded ------------------------------------------------
+      ImGui::Separator();
+      ImGui::Spacing();
+      ImGui::SetCursorPosX((io.DisplaySize.x - 380.0f) * 0.5f);
+      ImGui::TextDisabled("Enter a path above, or drag and drop a .ud file here.");
+    }
 
     ImGui::End();
 
-    // ---- Render ----------------------------------------------------------
     ImGui::Render();
     int fb_w, fb_h;
     glfwGetFramebufferSize(win, &fb_w, &fb_h);

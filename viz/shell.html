@@ -17,9 +17,17 @@
       font-family: monospace; font-size: 18px; color: #666;
       border: 2px dashed #333; padding: 32px 56px; border-radius: 8px;
       background: rgba(10,10,14,0.7); text-align: center; line-height: 1.6;
+      pointer-events: auto;
     }
     body.dragging #boot-hint p { border-color: #6af; color: #adf; }
     #boot-hint.hidden { display: none; }
+    #open-btn {
+      display: inline-block; margin-top: 16px;
+      padding: 8px 24px; border-radius: 4px;
+      background: #2a2a3a; border: 1px solid #555; color: #aaa;
+      font-family: monospace; font-size: 15px; cursor: pointer;
+    }
+    #open-btn:hover { background: #3a3a4a; border-color: #6af; color: #adf; }
 
     #spinner {
       position: fixed; bottom: 16px; right: 20px;
@@ -30,8 +38,9 @@
 <body>
   <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
 
+  <input type="file" id="file-input" accept=".ud" style="display:none">
   <div id="boot-hint">
-    <p id="boot-msg">Loading…</p>
+    <p id="boot-msg">Loading…<br><label id="open-btn" for="file-input">Open replay…</label></p>
   </div>
   <div id="spinner"></div>
 
@@ -68,7 +77,8 @@
         clearInterval(spinTimer);
         spinner.textContent = '';
         bootMsg.innerHTML = 'Drop a <code>.ud</code> replay file here<br>'
-          + '<small style="color:#555">Space=play/pause &nbsp; ←/→=step &nbsp; G/0/1=view &nbsp; Scroll=zoom</small>';
+          + '<label id="open-btn" for="file-input">Open replay…</label><br>'
+          + '<small style="color:#555">Space=play/pause &nbsp; ←/→=step &nbsp; U/G/0/1=view &nbsp; Scroll=zoom</small>';
         if (window._pendingReplay) {
           _doLoad(window._pendingReplay);
           window._pendingReplay = null;
@@ -80,15 +90,7 @@
   </script>
   {{{ SCRIPT }}}
   <script>
-    document.addEventListener('dragenter', function()  { document.body.classList.add('dragging'); });
-    document.addEventListener('dragleave', function(e) {
-      if (!e.relatedTarget) document.body.classList.remove('dragging');
-    });
-    document.addEventListener('dragover',  function(e) { e.preventDefault(); });
-    document.addEventListener('drop', function(e) {
-      e.preventDefault();
-      document.body.classList.remove('dragging');
-      var file = e.dataTransfer.files[0];
+    function _loadFile(file) {
       if (!file) return;
       var reader = new FileReader();
       reader.onload = function(evt) {
@@ -101,6 +103,22 @@
         }
       };
       reader.readAsArrayBuffer(file);
+    }
+
+    document.getElementById('file-input').addEventListener('change', function(e) {
+      _loadFile(e.target.files[0]);
+      e.target.value = '';  // allow re-selecting the same file
+    });
+
+    document.addEventListener('dragenter', function()  { document.body.classList.add('dragging'); });
+    document.addEventListener('dragleave', function(e) {
+      if (!e.relatedTarget) document.body.classList.remove('dragging');
+    });
+    document.addEventListener('dragover',  function(e) { e.preventDefault(); });
+    document.addEventListener('drop', function(e) {
+      e.preventDefault();
+      document.body.classList.remove('dragging');
+      _loadFile(e.dataTransfer.files[0]);
     });
   </script>
 </body>
