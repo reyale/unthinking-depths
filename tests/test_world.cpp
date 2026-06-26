@@ -47,6 +47,20 @@ TEST(World, PurgeDeadRemovesKilledUnits) {
   EXPECT_EQ(w.units.size(), 0u);
 }
 
+TEST(World, StructureByPosPopulatedOnSpawn) {
+  auto w = make_world();
+  w.spawn_structure({0}, game::StructureType::CommandCore, {3, 3});
+  EXPECT_EQ(w.structure_by_pos.count(game::Vec2{3, 3}), 1u);
+}
+
+TEST(World, StructureByPosRemovedOnPurge) {
+  auto w = make_world();
+  auto& s = w.spawn_structure({0}, game::StructureType::CommandCore, {3, 3});
+  s.hp = 0;
+  w.purge_dead();
+  EXPECT_EQ(w.structure_by_pos.count(game::Vec2{3, 3}), 0u);
+}
+
 TEST(World, CommandCoreFindsLivingCore) {
   auto w = make_world();
   game::FactionId f0{0};
@@ -404,4 +418,24 @@ TEST(Movement, SwapIsBlocked) {
   game::run_movement(w, cmds_a, cmds_b);
   EXPECT_EQ(a.pos.x, 3); // both blocked — swap detected
   EXPECT_EQ(b.pos.x, 4);
+}
+
+TEST(Movement, BlockedByFriendlyStructure) {
+  auto w = make_world();
+  w.spawn_structure({0}, game::StructureType::CommandCore, {2, 1});
+  auto& unit = w.spawn_unit({0}, game::UnitType::Interceptor, {1, 1});
+  auto cmds = move_cmd(unit.id, 5, 1);
+  game::ValidatedCommands empty;
+  game::run_movement(w, cmds, empty);
+  EXPECT_EQ(unit.pos.x, 1); // cannot enter structure tile
+}
+
+TEST(Movement, BlockedByEnemyStructure) {
+  auto w = make_world();
+  w.spawn_structure({1}, game::StructureType::CommandCore, {2, 1});
+  auto& unit = w.spawn_unit({0}, game::UnitType::Interceptor, {1, 1});
+  auto cmds = move_cmd(unit.id, 5, 1);
+  game::ValidatedCommands empty;
+  game::run_movement(w, cmds, empty);
+  EXPECT_EQ(unit.pos.x, 1); // cannot enter enemy structure tile either
 }

@@ -37,6 +37,7 @@ Structure& World::spawn_structure(FactionId faction, StructureType type, Vec2 po
   }
   auto [it, ok] = structures.emplace(id, s);
   (void)ok;
+  structure_by_pos.emplace(pos, id);
   return it->second;
 }
 
@@ -79,7 +80,12 @@ void World::purge_dead() {
     it = it->second.alive() ? std::next(it) : units.erase(it);
   }
   for (auto it = structures.begin(); it != structures.end();) {
-    it = it->second.alive() ? std::next(it) : structures.erase(it);
+    if (it->second.alive()) {
+      it = std::next(it);
+    } else {
+      structure_by_pos.erase(it->second.pos);
+      it = structures.erase(it);
+    }
   }
 }
 

@@ -92,6 +92,10 @@ void run_movement(World& world, const ValidatedCommands& cmds_a, const Validated
         mv.steps_left = 0;
         continue;
       }
+      if (world.structure_by_pos.count(next)) {
+        mv.steps_left = 0;
+        continue;
+      }
       proposals.emplace(mv.id, next);
     }
 

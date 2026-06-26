@@ -23,6 +23,7 @@ struct World {
 
   std::map<UnitId, Unit> units;
   std::map<StructureId, Structure> structures;
+  std::map<Vec2, StructureId> structure_by_pos; // kept in sync with structures
   std::array<Resources, MAX_FACTIONS> resources{};
 
   // Id counters — assigned in creation order, never reused.
