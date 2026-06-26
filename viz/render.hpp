@@ -29,7 +29,7 @@ struct RenderFrame {
   std::vector<RenderCell> cells; // row-major: cells[y * width + x]
 
   uint32_t tick{0};
-  int view{-1}; // -1 = god, 0/1 = faction fog
+  int view{-2}; // -2 = union fog, -1 = god (all visible), 0/1 = faction fog
   size_t frame_idx{0};
   size_t total_frames{0};
 

@@ -37,9 +37,10 @@ static const char* win_reason_str(game::WinReason r) {
 void print_ascii_frame(const RenderFrame& rf) {
   printf("%s", CLEAR);
 
-  const char* view_label = (rf.view < 0) ? "God"
-                         : (rf.view == 0) ? "Faction 0 (cyan)"
-                                          : "Faction 1 (red)";
+  const char* view_label = (rf.view == -1) ? "God"
+                         : (rf.view == -2) ? "Union fog"
+                         : (rf.view == 0)  ? "Faction 0 (cyan)"
+                                           : "Faction 1 (red)";
   printf("Tick %-4u  %s view  [%zu/%zu]\n",
          rf.tick, view_label, rf.frame_idx + 1, rf.total_frames);
   printf("%sF0%s: %de %da   %sF1%s: %de %da\n",
@@ -77,7 +78,7 @@ void print_ascii_frame(const RenderFrame& rf) {
     printf("\n");
   }
 
-  printf("[n/space] next  [p] prev  [g] god  [0] faction 0  [1] faction 1  [q] quit\n");
+  printf("[n/space] next  [p] prev  [u] union  [g] god  [0] faction 0  [1] faction 1  [q] quit\n");
   printf("%sd%s drone  %si%s interceptor  %sf%s frigate  %sa%s artillery  "
          "%sC%s core  %sT%s factory  %sN%s claim\n",
          CYAN, RESET, CYAN, RESET, CYAN, RESET, CYAN, RESET,

@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
 
   RawMode raw;
   size_t idx = 0;
-  int view = -1;
+  int view = -2;
 
   auto show = [&] {
     auto rf = viz::build_render_frame(frames[idx], map, view, idx, frames.size());
@@ -96,6 +96,7 @@ int main(int argc, char** argv) {
       case 'q': goto done;
       case 'n': case ' ': if (idx + 1 < frames.size()) ++idx; break;
       case 'p':           if (idx > 0) --idx; break;
+      case 'u': view = -2; break;
       case 'g': view = -1; break;
       case '0': view = 0; break;
       case '1': view = 1; break;

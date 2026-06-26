@@ -1,6 +1,6 @@
 // Browser replay player — compiled with Emscripten.
 // Drop a .ud replay file onto the page to load it.
-// Controls: Space=play/pause  ←/→=step  G/0/1=view  Scroll=zoom
+// Controls: Space=play/pause  ←/→=step  U/G/0/1=view  Scroll=zoom
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -59,17 +59,18 @@ struct CellData {
 
 static CellData make_cell(const game::Map& map, const game::FrameState& fr,
                            int view, int32_t x, int32_t y) {
-  bool vis = (view < 0);
+  bool vis = (view == -1);
   if (!vis) {
     for (const auto& u : fr.units) {
-      if (static_cast<int>(u.faction.value) != view) continue;
+      if (view >= 0 && static_cast<int>(u.faction.value) != view) continue;
       if (std::abs(x - u.pos.x) + std::abs(y - u.pos.y) <= game::stats_for(u.type).sight)
         { vis = true; break; }
     }
     if (!vis) {
-      for (const auto& s : fr.structures)
-        if (static_cast<int>(s.faction.value) == view && s.pos.x == x && s.pos.y == y)
-          { vis = true; break; }
+      for (const auto& s : fr.structures) {
+        if (view >= 0 && static_cast<int>(s.faction.value) != view) continue;
+        if (s.pos.x == x && s.pos.y == y) { vis = true; break; }
+      }
     }
   }
   if (!vis) return {kFogBg};
@@ -115,7 +116,7 @@ struct App {
   std::vector<game::FrameState> frames;
   int   cur     = 0;
   int   total   = 0;
-  int   view    = -1;
+  int   view    = -2;
   bool  playing = false;
   float fps     = 10.0f;
   float cs      = 48.0f;
@@ -173,6 +174,7 @@ static void main_loop() {
     }
     if (ImGui::IsKeyPressed(ImGuiKey_RightArrow) && g.cur + 1 < g.total) { ++g.cur; g.playing = false; }
     if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow)  && g.cur > 0)           { --g.cur; g.playing = false; }
+    if (ImGui::IsKeyPressed(ImGuiKey_U)) g.view = -2;
     if (ImGui::IsKeyPressed(ImGuiKey_G)) g.view = -1;
     if (ImGui::IsKeyPressed(ImGuiKey_0)) g.view = 0;
     if (ImGui::IsKeyPressed(ImGuiKey_1)) g.view = 1;
@@ -215,6 +217,8 @@ static void main_loop() {
     ImGui::SliderFloat("fps##s", &g.fps, 1.0f, 30.0f, "%.0f");
     ImGui::SameLine();
     ImGui::Text("|");
+    ImGui::SameLine();
+    if (ImGui::Button("Union")) g.view = -2;
     ImGui::SameLine();
     if (ImGui::Button("God")) g.view = -1;
     ImGui::SameLine();

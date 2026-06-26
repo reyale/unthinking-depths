@@ -61,15 +61,15 @@ RenderFrame build_render_frame(const game::FrameState& frame, const game::Map& m
       auto& cell = rf.cells[static_cast<size_t>(y * W + x)];
       cell.glyph = terrain_glyph(map.tile_at({x, y}).terrain);
       cell.color = CellColor::Neutral;
-      cell.visible = (view < 0); // god view: all visible initially
+      cell.visible = (view == -1); // god view: all visible initially
     }
   }
 
-  // Compute fog visibility for faction views
-  if (view >= 0) {
+  // Compute fog visibility
+  if (view != -1) {
+    // Reveal tiles in sight of each relevant unit.
     for (const auto& uf : frame.units) {
-      // Own structures are always visible
-      if (static_cast<int>(uf.faction.value) != view)
+      if (view >= 0 && static_cast<int>(uf.faction.value) != view)
         continue;
       int32_t sight = game::stats_for(uf.type).sight;
       for (int32_t dy = -sight; dy <= sight; ++dy) {
@@ -82,9 +82,11 @@ RenderFrame build_render_frame(const game::FrameState& frame, const game::Map& m
         }
       }
     }
+    // Own structures are always visible in their faction's view.
     for (const auto& sf : frame.structures) {
-      if (static_cast<int>(sf.faction.value) == view)
-        rf.cells[static_cast<size_t>(sf.pos.y * W + sf.pos.x)].visible = true;
+      if (view >= 0 && static_cast<int>(sf.faction.value) != view)
+        continue;
+      rf.cells[static_cast<size_t>(sf.pos.y * W + sf.pos.x)].visible = true;
     }
   }
 

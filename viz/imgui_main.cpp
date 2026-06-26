@@ -1,4 +1,4 @@
-// Controls: Space=play/pause  ←/→=step  G=god  0/1=faction view  scroll=zoom  Q=quit
+// Controls: Space=play/pause  ←/→=step  U=union  G=god  0/1=faction view  scroll=zoom  Q=quit
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -55,17 +55,18 @@ struct CellData {
 static CellData make_cell(const game::Map& map, const game::FrameState& fr,
                            int view, int32_t x, int32_t y) {
   // Visibility (mirrors snapshot.cpp fog logic)
-  bool vis = (view < 0);
+  bool vis = (view == -1);
   if (!vis) {
     for (const auto& u : fr.units) {
-      if (static_cast<int>(u.faction.value) != view) continue;
+      if (view >= 0 && static_cast<int>(u.faction.value) != view) continue;
       if (std::abs(x - u.pos.x) + std::abs(y - u.pos.y) <= game::stats_for(u.type).sight)
         { vis = true; break; }
     }
     if (!vis) {
-      for (const auto& s : fr.structures)
-        if (static_cast<int>(s.faction.value) == view && s.pos.x == x && s.pos.y == y)
-          { vis = true; break; }
+      for (const auto& s : fr.structures) {
+        if (view >= 0 && static_cast<int>(s.faction.value) != view) continue;
+        if (s.pos.x == x && s.pos.y == y) { vis = true; break; }
+      }
     }
   }
   if (!vis) return {kFogBg};
@@ -109,7 +110,7 @@ int main(int argc, char** argv) {
   if (argc < 2) {
     fprintf(stderr,
         "usage: ud_viz_imgui <replay.ud>\n"
-        "  Space=play/pause  Arrows=step  G/0/1=view  Scroll=zoom  Q=quit\n");
+        "  Space=play/pause  Arrows=step  U/G/0/1=view  Scroll=zoom  Q=quit\n");
     return 1;
   }
 
@@ -159,7 +160,7 @@ int main(int argc, char** argv) {
   // ---- Playback state ------------------------------------------------------
 
   int    cur     = 0;
-  int    view    = -1;   // -1=god, 0/1=faction
+  int    view    = -2;   // -2=union fog, -1=god, 0/1=faction
   bool   playing = false;
   float  fps     = 10.0f;
   float  cs      = 48.0f;  // tile width in pixels (height = cs/2 in iso)
@@ -197,6 +198,7 @@ int main(int argc, char** argv) {
       }
       if (ImGui::IsKeyPressed(ImGuiKey_RightArrow) && cur + 1 < total) { ++cur; playing = false; }
       if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow)  && cur > 0)         { --cur; playing = false; }
+      if (ImGui::IsKeyPressed(ImGuiKey_U)) view = -2;
       if (ImGui::IsKeyPressed(ImGuiKey_G)) view = -1;
       if (ImGui::IsKeyPressed(ImGuiKey_0)) view = 0;
       if (ImGui::IsKeyPressed(ImGuiKey_1)) view = 1;
@@ -228,6 +230,8 @@ int main(int argc, char** argv) {
     ImGui::SliderFloat("fps##s", &fps, 1.0f, 30.0f, "%.0f");
     ImGui::SameLine();
     ImGui::Text("|");
+    ImGui::SameLine();
+    if (ImGui::Button("Union")) view = -2;
     ImGui::SameLine();
     if (ImGui::Button("God")) view = -1;
     ImGui::SameLine();
